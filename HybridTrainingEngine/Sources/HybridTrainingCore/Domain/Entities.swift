@@ -9,6 +9,7 @@ public struct WorkoutSession: Identifiable, Codable, Equatable, Sendable {
     public let durationMinutes: Double
     public let sRPE: Double                           // Foster sRPE: 1.0 ~ 10.0
     public let movementPatterns: [MovementPattern]    // 涉及之動作模式 (第 1 項視為主項)
+    public let executedExercises: [ExecutedExerciseDetail] // 具體執行之 FITT 動作明細
     public let source: SessionSource                  // 資料來源溯源
     public let averageHeartRate: Double?              // 平均心率 (手錶客觀數據)
     public let zoneDurationsSeconds: [Int: Double]?   // 各 Zone 0~5 停留秒數
@@ -22,6 +23,7 @@ public struct WorkoutSession: Identifiable, Codable, Equatable, Sendable {
         durationMinutes: Double,
         sRPE: Double,
         movementPatterns: [MovementPattern] = [],
+        executedExercises: [ExecutedExerciseDetail] = [],
         source: SessionSource = .manualLog,
         averageHeartRate: Double? = nil,
         zoneDurationsSeconds: [Int: Double]? = nil,
@@ -34,6 +36,7 @@ public struct WorkoutSession: Identifiable, Codable, Equatable, Sendable {
         self.durationMinutes = durationMinutes
         self.sRPE = sRPE
         self.movementPatterns = movementPatterns
+        self.executedExercises = executedExercises
         self.source = source
         self.averageHeartRate = averageHeartRate
         self.zoneDurationsSeconds = zoneDurationsSeconds

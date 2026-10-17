@@ -91,8 +91,18 @@ public struct SettingsView: View {
                     }
                     .listRowBackground(Color(hex: "161B22"))
                     
-                    // 4. 硬體探針與審核診斷
-                    Section(header: Text("開發與診斷工具").foregroundColor(Color(hex: "8B949E"))) {
+                    // 4. 硬體探針與動作庫
+                    Section(header: Text("動作庫與診斷工具").foregroundColor(Color(hex: "8B949E"))) {
+                        NavigationLink {
+                            ResistanceLibraryView()
+                        } label: {
+                            HStack {
+                                Label("阻力訓練動作庫 (20+ 項)", systemImage: "dumbbell.fill")
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                        }
+                        
                         Button {
                             isShowingAudit = true
                         } label: {

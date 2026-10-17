@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1F285C8551F483FCF0B84585 /* ResistanceLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC14CAF861E1E3A21C405CC /* ResistanceLibraryView.swift */; };
 		24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */; };
 		3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51439135618587B69BDBC11 /* HealthKitAdapter.swift */; };
 		4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */; };
@@ -31,6 +32,7 @@
 		2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLogSheet.swift; sourceTree = "<group>"; };
 		2F2332553E9B7DEE5B4760E7 /* HybridTrainingEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HybridTrainingEngine; path = HybridTrainingEngine; sourceTree = SOURCE_ROOT; };
 		348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCapsuleView.swift; sourceTree = "<group>"; };
+		6CC14CAF861E1E3A21C405CC /* ResistanceLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResistanceLibraryView.swift; sourceTree = "<group>"; };
 		74D5266F600E741F15164DB3 /* HybridTrainingApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HybridTrainingApp.entitlements; sourceTree = "<group>"; };
 		7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutKitAdapter.swift; sourceTree = "<group>"; };
 		7A7CE20AC5E875E72D327C66 /* LogbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogbookView.swift; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 		200578CFF0EB0EA98D456906 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				6CC14CAF861E1E3A21C405CC /* ResistanceLibraryView.swift */,
 				9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -300,6 +303,7 @@
 				AA2F942976A0B1B9ED10B6EE /* MainTabView.swift in Sources */,
 				96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */,
 				4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */,
+				1F285C8551F483FCF0B84585 /* ResistanceLibraryView.swift in Sources */,
 				ABF45843C0770A6B31FAE5C1 /* SettingsView.swift in Sources */,
 				B7DC04638C3F2CB67D98D663 /* SpikeAuditView.swift in Sources */,
 				588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */,

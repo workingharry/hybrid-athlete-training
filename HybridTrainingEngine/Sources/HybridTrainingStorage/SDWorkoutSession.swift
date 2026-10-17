@@ -17,6 +17,7 @@ public final class SDWorkoutSession {
     public var averageHeartRate: Double?
     public var loadAU: Double
     public var requiresManualRPEConfirmation: Bool
+    public var executedExercisesJSON: Data?
     
     public init(domain: WorkoutSession) {
         self.id = domain.id
@@ -29,6 +30,7 @@ public final class SDWorkoutSession {
         self.averageHeartRate = domain.averageHeartRate
         self.loadAU = domain.loadAU
         self.requiresManualRPEConfirmation = domain.requiresManualRPEConfirmation
+        self.executedExercisesJSON = try? JSONEncoder().encode(domain.executedExercises)
         
         switch domain.source {
         case .healthKitWorkout(let uuid):
@@ -47,6 +49,7 @@ public final class SDWorkoutSession {
     public func toDomain() -> WorkoutSession {
         let discipline = TrainingDiscipline(rawValue: disciplineRaw) ?? .running
         let patterns = movementPatternsRaw.compactMap { MovementPattern(rawValue: $0) }
+        let executedExercises = (executedExercisesJSON.flatMap { try? JSONDecoder().decode([ExecutedExerciseDetail].self, from: $0) }) ?? []
         
         let source: SessionSource
         if let uuidStr = sourceUUIDString, let uuid = UUID(uuidString: uuidStr) {
@@ -63,6 +66,7 @@ public final class SDWorkoutSession {
             durationMinutes: durationMinutes,
             sRPE: sRPE,
             movementPatterns: patterns,
+            executedExercises: executedExercises,
             source: source,
             averageHeartRate: averageHeartRate,
             requiresManualRPEConfirmation: requiresManualRPEConfirmation

@@ -77,6 +77,22 @@ public struct LogbookView: View {
                     .foregroundColor(Color(hex: "8B949E"))
             }
             
+            if !session.executedExercises.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(session.executedExercises) { item in
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color(hex: "F85149"))
+                                .frame(width: 4, height: 4)
+                            Text(item.summaryDescription)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(hex: "E6EDF3"))
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            
             HStack(spacing: 12) {
                 Label("\(Int(session.durationMinutes)) 分鐘", systemImage: "clock")
                     .font(.system(size: 12))
