@@ -132,53 +132,90 @@ public struct TrainingPolicyEngine {
         } else {
             // 黃燈 (Moderate) 或 綠燈 (Ready)
             if posteriorCooldown > 24.0 || quadCooldown > 24.0 {
-                // 下肢深度冷卻中 ➔ 限制跑步強度 (Zone 2)
-                primaryRec = RecommendedWorkout(
-                    title: "Zone 2 有氧基底慢跑",
-                    subtitle: "目標 40 分鐘 · 避開高強度衝擊",
-                    discipline: .running,
-                    runningType: .baseRun,
-                    targetPatterns: [],
-                    estimatedDurationMinutes: 40.0,
-                    estimatedLoadAU: 140.0,
-                    steps: [
-                        WorkoutStepItem(order: 1, name: "熱身慢跑", durationSeconds: 300, stepDescription: "Zone 1 慢跑"),
-                        WorkoutStepItem(order: 2, name: "Zone 2 基底慢跑", durationSeconds: 1800, targetHeartRateRangeMin: 130, targetHeartRateRangeMax: 144, stepDescription: "保持輕鬆談話配速"),
-                        WorkoutStepItem(order: 3, name: "緩和慢步", durationSeconds: 300, stepDescription: "心率降至 110 以下")
-                    ],
-                    isLockedDueToFatigue: true
-                )
+                // 下肢深度冷卻中 (剩餘 > 24h)
+                let freshUpperPush = pushCooldown <= 24.0
+                let freshUpperPull = pullCooldown <= 24.0
+                let maxLegHours = max(posteriorCooldown, quadCooldown)
+                let legType = quadCooldown >= posteriorCooldown ? "深蹲" : "硬舉"
                 
-                // 上半身冷卻感知備選
-                var alternates: [RecommendedWorkout] = []
-                if pushCooldown <= 24.0 {
-                    alternates.append(RecommendedWorkout(
-                        title: "上半身推 (Push) 肌力訓練",
-                        subtitle: "胸肩三頭 · 完全避開下肢干擾",
+                if freshUpperPush || freshUpperPull {
+                    // 上半身新鮮 ➔ 主推薦直接切換為上半身肌力課表！
+                    let primaryPattern: MovementPattern = freshUpperPush ? .upperPush : .upperPull
+                    let titleName = freshUpperPush ? "上半身推 (Push) 肌力訓練" : "上半身拉 (Pull) 肌力訓練"
+                    let subtitleDesc = "下肢\(legType)修復中 (剩餘 \(Int(maxLegHours))h) · 今日阻斷下肢衝擊，主推薦上半身！"
+                    
+                    primaryRec = RecommendedWorkout(
+                        title: titleName,
+                        subtitle: subtitleDesc,
                         discipline: .strength,
-                        targetPatterns: [.upperPush],
+                        targetPatterns: [primaryPattern],
                         estimatedDurationMinutes: 45.0,
-                        estimatedLoadAU: 337.5
-                    ))
-                }
-                if pullCooldown <= 24.0 {
+                        estimatedLoadAU: 337.5,
+                        isLockedDueToFatigue: true
+                    )
+                    
+                    var alternates: [RecommendedWorkout] = []
+                    if freshUpperPush && freshUpperPull {
+                        alternates.append(RecommendedWorkout(
+                            title: "上半身拉 (Pull) 肌力訓練",
+                            subtitle: "背部與核心穩定 · 輔助跑步軀幹",
+                            discipline: .strength,
+                            targetPatterns: [.upperPull],
+                            estimatedDurationMinutes: 45.0,
+                            estimatedLoadAU: 315.0
+                        ))
+                    }
+                    // 將 Zone 2 跑步降級為次要備選（僅供堅持想排酸者選擇）
                     alternates.append(RecommendedWorkout(
-                        title: "上半身拉 (Pull) 肌力訓練",
-                        subtitle: "背部與核心穩定 · 輔助跑步軀幹",
-                        discipline: .strength,
-                        targetPatterns: [.upperPull],
-                        estimatedDurationMinutes: 45.0,
-                        estimatedLoadAU: 315.0
+                        title: "Zone 2 有氧基底慢跑 (備選排酸)",
+                        subtitle: "目標 35 分鐘 · 避開高強度衝擊，低速排酸",
+                        discipline: .running,
+                        runningType: .baseRun,
+                        targetPatterns: [],
+                        estimatedDurationMinutes: 35.0,
+                        estimatedLoadAU: 122.5,
+                        steps: [
+                            WorkoutStepItem(order: 1, name: "熱身慢跑", durationSeconds: 300, stepDescription: "Zone 1 慢跑"),
+                            WorkoutStepItem(order: 2, name: "Zone 2 基底慢跑", durationSeconds: 1500, targetHeartRateRangeMin: 130, targetHeartRateRangeMax: 144, stepDescription: "保持輕鬆談話配速"),
+                            WorkoutStepItem(order: 3, name: "緩和慢步", durationSeconds: 300, stepDescription: "心率降至 110 以下")
+                        ],
+                        isLockedDueToFatigue: true
                     ))
+                    alternates.append(RecommendedWorkout(
+                        title: "活動度與放鬆 (Mobility)",
+                        subtitle: "髖關節與下肢筋膜修復",
+                        discipline: .mobility,
+                        estimatedDurationMinutes: 20.0,
+                        estimatedLoadAU: 20.0
+                    ))
+                    safeAlternates = alternates
+                } else {
+                    // 全身均處於疲勞冷卻 ➔ 降級為超慢主動恢復或活動度
+                    primaryRec = RecommendedWorkout(
+                        title: "Zone 2 有氧基底慢跑",
+                        subtitle: "目標 35 分鐘 · 全身肌群修復中，避開高強度衝擊",
+                        discipline: .running,
+                        runningType: .baseRun,
+                        targetPatterns: [],
+                        estimatedDurationMinutes: 35.0,
+                        estimatedLoadAU: 122.5,
+                        steps: [
+                            WorkoutStepItem(order: 1, name: "熱身慢跑", durationSeconds: 300, stepDescription: "Zone 1 慢跑"),
+                            WorkoutStepItem(order: 2, name: "Zone 2 基底慢跑", durationSeconds: 1500, targetHeartRateRangeMin: 130, targetHeartRateRangeMax: 144, stepDescription: "保持輕鬆談話配速"),
+                            WorkoutStepItem(order: 3, name: "緩和慢步", durationSeconds: 300, stepDescription: "心率降至 110 以下")
+                        ],
+                        isLockedDueToFatigue: true
+                    )
+                    safeAlternates = [
+                        RecommendedWorkout(
+                            title: "活動度與放鬆 (Mobility)",
+                            subtitle: "徒手活動度 · 無下肢負擔",
+                            discipline: .mobility,
+                            estimatedDurationMinutes: 20.0,
+                            estimatedLoadAU: 20.0
+                        )
+                    ]
                 }
-                alternates.append(RecommendedWorkout(
-                    title: "活動度與放鬆 (Mobility)",
-                    subtitle: "髖關節與腳踝修復",
-                    discipline: .mobility,
-                    estimatedDurationMinutes: 20.0,
-                    estimatedLoadAU: 20.0
-                ))
-                safeAlternates = alternates
             } else if readinessGrade == .ready {
                 // 綠燈且下肢充沛 ➔ 可解鎖間歇跑或大重量主項
                 primaryRec = RecommendedWorkout(
