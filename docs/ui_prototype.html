@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>iPhone 混合訓練自適應排課系統 - UI 原型</title>
+  <style>
+    :root {
+      --bg: #090C10;
+      --surface: #161B22;
+      --surface-border: #30363D;
+      --text-primary: #F0F6FC;
+      --text-secondary: #8B949E;
+      --accent-cardio: #58A6FF;
+      --accent-cooldown: #E3B341;
+      --accent-ready: #3FB950;
+      --accent-alert: #F85149;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background: #010409;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px 10px;
+    }
+
+    /* iPhone 容器模擬 */
+    .iphone-container {
+      width: 393px;
+      height: 852px;
+      background: var(--bg);
+      border-radius: 54px;
+      box-shadow: 0 0 0 12px #21262D, 0 25px 60px rgba(0,0,0,0.8);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* 動態島 */
+    .dynamic-island {
+      width: 124px;
+      height: 35px;
+      background: #000;
+      position: absolute;
+      top: 11px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 20px;
+      z-index: 99;
+    }
+
+    /* 頂部導航列 */
+    .nav-bar {
+      padding: 58px 24px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .date-badge {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: -0.2px;
+    }
+
+    .settings-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--surface-border);
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* 滾動內容區 */
+    .scroll-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 20px 110px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .scroll-content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 生理指標藥丸 (Capsules) */
+    .metric-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .status-capsule {
+      background: rgba(63, 185, 80, 0.12);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      color: var(--accent-ready);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 100px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-capsule.neutral {
+      background: rgba(88, 166, 255, 0.1);
+      border-color: rgba(88, 166, 255, 0.25);
+      color: var(--accent-cardio);
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* 今日建議主卡片 (Hero Card) */
+    .hero-card {
+      background: linear-gradient(180deg, #161B22 0%, #111419 100%);
+      border: 1px solid var(--surface-border);
+      border-radius: 24px;
+      padding: 22px;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .hero-card:active {
+      transform: scale(0.98);
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .workout-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .workout-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin-bottom: 18px;
+    }
+
+    .target-box {
+      background: rgba(0,0,0,0.3);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .target-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .target-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-cardio);
+    }
+
+    .target-lbl {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .cta-link {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-cardio);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* 下肢肌群冷卻時鐘卡片 */
+    .cooldown-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .cooldown-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .cooldown-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cooldown-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(227, 179, 65, 0.15);
+      color: var(--accent-cooldown);
+    }
+
+    .cooldown-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* 底部懸浮打卡按鈕 (Bottom Action Bar) */
+    .bottom-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      right: 20px;
+      z-index: 10;
+    }
+
+    .log-btn {
+      width: 100%;
+      height: 52px;
+      background: #238636;
+      border: none;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(35, 134, 54, 0.35);
+      transition: transform 0.15s ease;
+    }
+
+    .log-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* 15 秒打卡彈窗 (Sheet Modal) */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .sheet-card {
+      background: #161B22;
+      border-top: 1px solid var(--surface-border);
+      border-radius: 32px 32px 0 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: #484F58;
+      border-radius: 2px;
+      align-self: center;
+      margin-bottom: 4px;
+    }
+
+    .sheet-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .select-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--surface-border);
+      padding: 12px 6px;
+      border-radius: 14px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .select-item.active {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: var(--accent-cardio);
+      color: var(--accent-cardio);
+    }
+
+    .slider-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .rpe-slider {
+      width: 100%;
+      accent-color: var(--accent-cardio);
+    }
+
+    .save-btn {
+      height: 48px;
+      background: #1F6FEB;
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* 結構化 WorkoutKit 預覽彈窗 */
+    .workout-step-item {
+      display: flex;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .step-detail {
+      flex: 1;
+    }
+
+    .step-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .step-target {
+      font-size: 12px;
+      color: var(--accent-cardio);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="iphone-container">
+    <div class="dynamic-island"></div>
+
+    <!-- 頂部導航 -->
+    <div class="nav-bar">
+      <div>
+        <div class="date-badge">10月17日 星期六</div>
+        <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">今天</div>
+      </div>
+      <div class="settings-btn">⚙️</div>
+    </div>
+
+    <!-- 滾動內容 -->
+    <div class="scroll-content">
+
+      <!-- 生理狀態與負荷標籤 -->
+      <div class="metric-row">
+        <div class="status-capsule">
+          <span class="dot"></span> 恢復良好 (HRV Z: +0.4)
+        </div>
+        <div class="status-capsule neutral">
+          <span class="dot"></span> 7天 ACWR: 1.12 穩健
+        </div>
+      </div>
+
+      <!-- 今日建議訓練 Hero Card -->
+      <div class="hero-card" onclick="openWorkoutModal()">
+        <div class="card-label">今日自適應課表 (Daily Plan)</div>
+        <div class="workout-title">
+          <span>🏃</span> Zone 2 基底慢跑
+        </div>
+        <div class="workout-sub">
+          目標 40 分鐘 · 建立有氧基礎耐力，預估負荷 140 AU
+        </div>
+        
+        <div class="target-box">
+          <div class="target-item">
+            <span class="target-val">130 ~ 144</span>
+            <span class="target-lbl">目標心率區間 (bpm)</span>
+          </div>
+          <div class="target-item" style="text-align: right;">
+            <span class="target-val">40:00</span>
+            <span class="target-lbl">建議總時長</span>
+          </div>
+        </div>
+
+        <div class="cta-link">
+          <span>查看結構化步驟並同步手錶</span>
+          <span>→</span>
+        </div>
+      </div>
+
+      <!-- 下肢肌群冷卻狀態卡片 -->
+      <div class="cooldown-card">
+        <div class="cooldown-header">
+          <div class="cooldown-title">
+            <span>🦵</span> 下肢腿部 (Legs)
+          </div>
+          <div class="cooldown-pill">冷卻修復中</div>
+        </div>
+        <div class="cooldown-desc">
+          前次刺激：週五深蹲硬舉 (sRPE 8.0)<br>
+          已修復 28h · 剩餘冷卻 20h<br>
+          <span style="color: var(--accent-cooldown);">💡 啟發式提醒：今日課表已自動限制為低衝擊 Zone 2 慢跑，避開高強度間歇跑。</span>
+        </div>
+      </div>
+
+      <!-- 每週目標結構卡片 -->
+      <div class="cooldown-card" style="border-color: rgba(255,255,255,0.05);">
+        <div class="cooldown-header">
+          <div class="cooldown-title" style="font-size: 13px; color: var(--text-secondary);">
+            <span>📅</span> 本週訓練進度 (3 / 4 天)
+          </div>
+          <span style="font-size: 12px; color: var(--text-secondary);">目標 4 天</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary);">
+          週三 (推) · 週四 (Zone 2) · 週五 (腿日) · <strong style="color: #fff;">週六 (今日跑步)</strong> · 週日 (固定休息)
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部打卡動作條 -->
+    <div class="bottom-bar">
+      <button class="log-btn" onclick="openLogModal()">
+        <span>+</span> 記錄重量訓練 (15 秒打卡)
+      </button>
+    </div>
+
+    <!-- 15秒重訓打卡 Sheet Modal -->
+    <div class="modal-overlay" id="logModal" onclick="closeModals(event)">
+      <div class="sheet-card" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">記錄剛完成的重訓</div>
+
+        <div>
+          <div class="card-label">1. 主要受力部位</div>
+          <div class="selector-grid">
+            <div class="select-item" onclick="toggleSelect(this)">推 (Push)</div>
+            <div class="select-item" onclick="toggleSelect(this)">拉 (Pull)</div>
+            <div class="select-item active" onclick="toggleSelect(this)">腿 (Legs)</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card-label">2. 訓練時間 (分鐘)</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 16px; border-radius: 12px;">
+            <button style="background:none; border:none; color:#fff; font-size:20px; cursor:pointer;" onclick="adjustTime(-5)">−</button>
+            <span id="durationVal" style="font-size: 18px; font-weight: 700;">45 分鐘</span>
+            <button style="background:none; border:none; color:#fff; font-size:20px; cursor:pointer;" onclick="adjustTime(5)">+</button>
+          </div>
+        </div>
+
+        <div class="slider-box">
+          <div class="slider-header">
+            <span>3. 自覺強度 (Foster sRPE)</span>
+            <strong id="rpeDisplay" style="color: var(--accent-cardio);">7.5 (吃力)</strong>
+          </div>
+          <input type="range" min="1" max="10" step="0.5" value="7.5" class="rpe-slider" oninput="updateRPE(this.value)">
+        </div>
+
+        <div style="font-size: 12px; color: var(--text-secondary); text-align: center;">
+          預估肌力負荷：<strong id="loadDisplay" style="color: #fff;">337 AU</strong> · 鎖定腿部 48h 冷卻
+        </div>
+
+        <button class="save-btn" onclick="saveStrengthLog()">完成儲存</button>
+      </div>
+    </div>
+
+    <!-- WorkoutKit 課表預覽 Sheet Modal -->
+    <div class="modal-overlay" id="workoutModal" onclick="closeModals(event)">
+      <div class="sheet-card" onclick="event.stopPropagation()">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">Zone 2 有氧基底跑課表</div>
+        <div style="font-size: 13px; color: var(--text-secondary); margin-top: -12px;">
+          結構化步驟拆解 (Apple Watch WorkoutKit)
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div class="workout-step-item">
+            <div class="step-num">1</div>
+            <div class="step-detail">
+              <div class="step-name">熱身 (Warmup)</div>
+              <div class="step-target">5:00 自由輕鬆慢跑</div>
+            </div>
+          </div>
+          <div class="workout-step-item">
+            <div class="step-num" style="background: var(--accent-cardio); color: #000;">2</div>
+            <div class="step-detail">
+              <div class="step-name">目標區間 (Work Interval)</div>
+              <div class="step-target">30:00 維持 Zone 2 (130 - 144 bpm)</div>
+            </div>
+          </div>
+          <div class="workout-step-item">
+            <div class="step-num">3</div>
+            <div class="step-detail">
+              <div class="step-name">緩和 (Cooldown)</div>
+              <div class="step-target">5:00 徒步快走</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="save-btn" style="background: #238636; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="syncToWatch()">
+          <span>⌚</span> 排程同步至 Apple Watch
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let duration = 45;
+    let rpe = 7.5;
+
+    function openLogModal() {
+      document.getElementById('logModal').style.display = 'flex';
+    }
+
+    function openWorkoutModal() {
+      document.getElementById('workoutModal').style.display = 'flex';
+    }
+
+    function closeModals(e) {
+      document.getElementById('logModal').style.display = 'none';
+      document.getElementById('workoutModal').style.display = 'none';
+    }
+
+    function toggleSelect(el) {
+      el.classList.toggle('active');
+    }
+
+    function adjustTime(delta) {
+      duration = Math.max(10, Math.min(180, duration + delta));
+      document.getElementById('durationVal').innerText = duration + ' 分鐘';
+      updateLoad();
+    }
+
+    function updateRPE(val) {
+      rpe = parseFloat(val);
+      let desc = rpe <= 3 ? "輕鬆" : (rpe <= 6 ? "適中" : (rpe <= 8.5 ? "吃力" : "極度疲勞"));
+      document.getElementById('rpeDisplay').innerText = rpe.toFixed(1) + ' (' + desc + ')';
+      updateLoad();
+    }
+
+    function updateLoad() {
+      const load = Math.round(duration * rpe);
+      document.getElementById('loadDisplay').innerText = load + ' AU';
+    }
+
+    function saveStrengthLog() {
+      alert("✅ 已完成打卡！\n- 訓練時長: " + duration + " 分鐘\n- 強度: sRPE " + rpe + "\n- 肌力負荷: " + Math.round(duration * rpe) + " AU\n- 已更新腿部冷卻時鐘至 48 小時！");
+      closeModals();
+    }
+
+    function syncToWatch() {
+      alert("⌚ 課表已透過 WorkoutKit 成功發布！\n手錶體能訓練 App 已出現「今日自適應 Zone 2 基底跑」，出門跑步可享有原生震動提醒！");
+      closeModals();
+    }
+  </script>
+</body>
+</html>

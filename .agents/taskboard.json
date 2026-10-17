@@ -1,0 +1,15 @@
+{
+  "config": {
+    "auto_poll_enabled": true,
+    "port": 8050
+  },
+  "projects": [
+    {
+      "id": "default",
+      "name": "預設專案",
+      "color": "#4F46E5"
+    }
+  ],
+  "tasks": [],
+  "pipeline_nodes": []
+}
