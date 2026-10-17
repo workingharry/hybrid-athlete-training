@@ -260,6 +260,57 @@ public final class HealthKitAdapter: HealthKitPort, @unchecked Sendable {
                 zoneDurationsSeconds: zoneDurations,
                 requiresManualRPEConfirmation: false
             )
+        } else if workout.workoutActivityType == .cycling {
+            let zoneDurations = try await calculateWorkoutZones(workout: workout, healthStore: healthStore)
+            let derivedSRPE = FosterLoadCalculator.deriveRunningRPE(zoneDurationsSeconds: zoneDurations, personalBias: -0.5)
+            
+            return WorkoutSession(
+                id: workout.uuid,
+                startDate: workout.startDate,
+                endDate: workout.endDate,
+                discipline: .cycling,
+                durationMinutes: durationMinutes,
+                sRPE: derivedSRPE,
+                movementPatterns: [.lowerQuad],
+                source: .healthKitWorkout(hkUUID: workout.uuid),
+                averageHeartRate: nil,
+                zoneDurationsSeconds: zoneDurations,
+                requiresManualRPEConfirmation: false
+            )
+        } else if workout.workoutActivityType == .swimming {
+            let zoneDurations = try await calculateWorkoutZones(workout: workout, healthStore: healthStore)
+            let derivedSRPE = FosterLoadCalculator.deriveRunningRPE(zoneDurationsSeconds: zoneDurations, personalBias: 0.0)
+            
+            return WorkoutSession(
+                id: workout.uuid,
+                startDate: workout.startDate,
+                endDate: workout.endDate,
+                discipline: .swimming,
+                durationMinutes: durationMinutes,
+                sRPE: derivedSRPE,
+                movementPatterns: [.upperPull],
+                source: .healthKitWorkout(hkUUID: workout.uuid),
+                averageHeartRate: nil,
+                zoneDurationsSeconds: zoneDurations,
+                requiresManualRPEConfirmation: false
+            )
+        } else if workout.workoutActivityType == .rowing {
+            let zoneDurations = try await calculateWorkoutZones(workout: workout, healthStore: healthStore)
+            let derivedSRPE = FosterLoadCalculator.deriveRunningRPE(zoneDurationsSeconds: zoneDurations, personalBias: 0.5)
+            
+            return WorkoutSession(
+                id: workout.uuid,
+                startDate: workout.startDate,
+                endDate: workout.endDate,
+                discipline: .rowing,
+                durationMinutes: durationMinutes,
+                sRPE: derivedSRPE,
+                movementPatterns: [.upperPull, .lowerPosterior],
+                source: .healthKitWorkout(hkUUID: workout.uuid),
+                averageHeartRate: nil,
+                zoneDurationsSeconds: zoneDurations,
+                requiresManualRPEConfirmation: false
+            )
         } else {
             let discipline: TrainingDiscipline
             let patterns: [MovementPattern]

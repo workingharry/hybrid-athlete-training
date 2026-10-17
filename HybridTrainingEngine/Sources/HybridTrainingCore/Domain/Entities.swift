@@ -172,6 +172,9 @@ public struct DailyDecision: Codable, Equatable, Sendable {
     public let cooldowns: [MuscleCooldownStatus]         // 各動作模式剩餘小時
     public let primaryRecommendation: RecommendedWorkout // 今日最佳主推薦
     public let safeAlternates: [RecommendedWorkout]      // 2~3 個運動學互補安全備選
+    public let todayRunningOption: RecommendedWorkout?   // 今日推薦跑步課表
+    public let todayStrengthOption: RecommendedWorkout?  // 今日推薦肌力課表
+    public let todayCrossTrainingOption: RecommendedWorkout? // 今日推薦交叉/單車/游泳課表
     public let fatigueWarnings: [String]                 // 啟發式提醒文字清單
     
     public init(
@@ -185,6 +188,9 @@ public struct DailyDecision: Codable, Equatable, Sendable {
         cooldowns: [MuscleCooldownStatus],
         primaryRecommendation: RecommendedWorkout,
         safeAlternates: [RecommendedWorkout],
+        todayRunningOption: RecommendedWorkout? = nil,
+        todayStrengthOption: RecommendedWorkout? = nil,
+        todayCrossTrainingOption: RecommendedWorkout? = nil,
         fatigueWarnings: [String] = []
     ) {
         self.date = date
@@ -197,6 +203,9 @@ public struct DailyDecision: Codable, Equatable, Sendable {
         self.cooldowns = cooldowns
         self.primaryRecommendation = primaryRecommendation
         self.safeAlternates = safeAlternates
+        self.todayRunningOption = todayRunningOption
+        self.todayStrengthOption = todayStrengthOption
+        self.todayCrossTrainingOption = todayCrossTrainingOption
         self.fatigueWarnings = fatigueWarnings
     }
 }

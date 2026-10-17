@@ -284,6 +284,100 @@ public struct TrainingPolicyEngine {
             }
         }
         
+        // 6. 為運動員建構多軌專屬推薦（今日跑步 / 今日阻力 / 今日交叉）
+        let runningOpt: RecommendedWorkout?
+        let strengthOpt: RecommendedWorkout?
+        let crossOpt: RecommendedWorkout?
+
+        if readinessGrade == .injured {
+            runningOpt = nil
+            strengthOpt = nil
+            crossOpt = RecommendedWorkout(
+                title: "溫和活動度與全身伸展",
+                subtitle: "低強度關節減壓，避免負重與下肢衝擊",
+                discipline: .mobility,
+                estimatedDurationMinutes: 20.0,
+                estimatedLoadAU: 20.0
+            )
+        } else if acwr > 1.5 || readinessGrade == .fatigued {
+            runningOpt = RecommendedWorkout(
+                title: "Zone 1 超慢主動恢復跑",
+                subtitle: "低心肺衝擊 · 促進代謝廢物清除",
+                discipline: .running,
+                runningType: .recoveryRun,
+                estimatedDurationMinutes: 25.0,
+                estimatedLoadAU: 50.0
+            )
+            strengthOpt = nil
+            crossOpt = RecommendedWorkout(
+                title: "低阻力室內自行車 (Zone 1)",
+                subtitle: "零衝擊迴轉 · 促進下肢血液循環",
+                discipline: .cycling,
+                estimatedDurationMinutes: 30.0,
+                estimatedLoadAU: 60.0
+            )
+        } else {
+            // 正常推薦（黃燈/綠燈）
+            if readinessGrade == .ready && quadCooldown <= 24.0 {
+                runningOpt = RecommendedWorkout(
+                    title: "Zone 4 閾值節奏跑 (Tempo Run)",
+                    subtitle: "目標 40 分鐘 · 提升乳酸代謝耐受力",
+                    discipline: .running,
+                    runningType: .tempoRun,
+                    estimatedDurationMinutes: 40.0,
+                    estimatedLoadAU: 240.0
+                )
+            } else {
+                runningOpt = RecommendedWorkout(
+                    title: "Zone 2 有氧基底慢跑",
+                    subtitle: "目標 40 分鐘 · 穩健有氧耐力巡航",
+                    discipline: .running,
+                    runningType: .baseRun,
+                    estimatedDurationMinutes: 40.0,
+                    estimatedLoadAU: 140.0
+                )
+            }
+
+            // 阻力訓練推薦（避開疲勞部位）
+            if pushCooldown <= 24.0 && (quadCooldown > 24.0 || posteriorCooldown > 24.0) {
+                strengthOpt = RecommendedWorkout(
+                    title: "上半身推 (Push) 肌力專項",
+                    subtitle: "伏地挺身/臥推/肩外旋強化 · 避開下肢負擔",
+                    discipline: .strength,
+                    targetPatterns: [.upperPush],
+                    estimatedDurationMinutes: 45.0,
+                    estimatedLoadAU: 315.0
+                )
+            } else if pullCooldown <= 24.0 && (quadCooldown > 24.0 || posteriorCooldown > 24.0) {
+                strengthOpt = RecommendedWorkout(
+                    title: "上半身拉 (Pull) 肌力專項",
+                    subtitle: "高拉/引體向上/面拉 · 強化背部與軀幹姿態",
+                    discipline: .strength,
+                    targetPatterns: [.upperPull],
+                    estimatedDurationMinutes: 45.0,
+                    estimatedLoadAU: 315.0
+                )
+            } else {
+                strengthOpt = RecommendedWorkout(
+                    title: "下肢深蹲與硬舉平衡課表",
+                    subtitle: "槓鈴深蹲/腿推機/提踵 · 全面強化下肢爆發力",
+                    discipline: .strength,
+                    targetPatterns: [.lowerQuad, .lowerPosterior],
+                    estimatedDurationMinutes: 50.0,
+                    estimatedLoadAU: 375.0
+                )
+            }
+
+            // 交叉訓練推薦 (Cycling / Swimming)
+            crossOpt = RecommendedWorkout(
+                title: "有氧單車巡航 (Zone 2 Cycling)",
+                subtitle: "目標 45 分鐘 · 無著地衝擊之心肺耐力刺激",
+                discipline: .cycling,
+                estimatedDurationMinutes: 45.0,
+                estimatedLoadAU: 157.5
+            )
+        }
+        
         return DailyDecision(
             date: now,
             readinessGrade: readinessGrade,
@@ -295,6 +389,9 @@ public struct TrainingPolicyEngine {
             cooldowns: cooldownList,
             primaryRecommendation: primaryRec,
             safeAlternates: safeAlternates,
+            todayRunningOption: runningOpt,
+            todayStrengthOption: strengthOpt,
+            todayCrossTrainingOption: crossOpt,
             fatigueWarnings: warnings
         )
     }

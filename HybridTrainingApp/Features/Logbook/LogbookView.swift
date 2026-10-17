@@ -140,6 +140,12 @@ public struct LogbookView: View {
         switch session.discipline {
         case .running:
             return "路跑 / 有氧耐力"
+        case .cycling:
+            return "自行車 / 單車巡航"
+        case .swimming:
+            return "游泳 / 水中有氧"
+        case .rowing:
+            return "划船機 / 水上划船"
         case .strength:
             let patterns = session.movementPatterns.map { patternName($0) }.joined(separator: " + ")
             return patterns.isEmpty ? "肌力重量訓練" : patterns
@@ -162,6 +168,9 @@ public struct LogbookView: View {
     private func sessionIcon(_ discipline: TrainingDiscipline) -> String {
         switch discipline {
         case .running: return "figure.run"
+        case .cycling: return "figure.outdoor.cycle"
+        case .swimming: return "figure.pool.swim"
+        case .rowing: return "figure.rower"
         case .strength: return "dumbbell.fill"
         case .mobility: return "figure.cooldown"
         case .rest: return "bed.double"
@@ -171,6 +180,9 @@ public struct LogbookView: View {
     private func sessionColor(_ discipline: TrainingDiscipline) -> Color {
         switch discipline {
         case .running: return Color(hex: "58A6FF")
+        case .cycling: return Color(hex: "D29922")
+        case .swimming: return Color(hex: "39C5BB")
+        case .rowing: return Color(hex: "A371F7")
         case .strength: return Color(hex: "F85149")
         case .mobility: return Color(hex: "3FB950")
         case .rest: return Color(hex: "8B949E")

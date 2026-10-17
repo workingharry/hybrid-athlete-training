@@ -35,6 +35,7 @@ public enum QuickLogTimeOffset: Int, CaseIterable, Identifiable, Sendable {
 
 /// 負責管理 QuickLogSheet 的表單狀態與 FITT 動作連動邏輯（純領域模型）
 public struct QuickLogDraft: Equatable, Sendable {
+    public var discipline: TrainingDiscipline
     public var selectedPatterns: Set<MovementPattern>
     public var selectedExercises: [ExecutedExerciseDetail]
     public var weightTextMap: [String: String]
@@ -43,16 +44,19 @@ public struct QuickLogDraft: Equatable, Sendable {
     public var timeOffset: QuickLogTimeOffset
 
     public static let minDurationMinutes: Double = 15.0
-    public static let maxDurationMinutes: Double = 120.0
+    public static let maxDurationMinutes: Double = 180.0
     public static let minSRPE: Double = 1.0
     public static let maxSRPE: Double = 10.0
     public static let minSets: Int = 1
     public static let maxSets: Int = 20
     public static let minReps: Int = 1
-    public static let maxReps: Int = 50
+    public static let maxReps: Int = 100
+    public static let minRestSeconds: Int = 0
+    public static let maxRestSeconds: Int = 300
     public static let maxWeightKg: Double = 1000.0
 
     public init(
+        discipline: TrainingDiscipline = .strength,
         selectedPatterns: Set<MovementPattern> = [.lowerQuad],
         selectedExercises: [ExecutedExerciseDetail] = [],
         weightTextMap: [String: String] = [:],
@@ -60,6 +64,7 @@ public struct QuickLogDraft: Equatable, Sendable {
         sRPE: Double = 7.5,
         timeOffset: QuickLogTimeOffset = .justNow
     ) {
+        self.discipline = discipline
         self.selectedPatterns = selectedPatterns
         self.selectedExercises = selectedExercises
         self.weightTextMap = weightTextMap
@@ -120,7 +125,7 @@ public struct QuickLogDraft: Equatable, Sendable {
         selectedExercises.contains { $0.exerciseName == exercise.name }
     }
 
-    /// 切換特定阻力訓練動作晶片（選取時自動帶入 FITT 預設組數與次數）
+    /// 切換特定阻力訓練動作晶片（選取時自動帶入 FITT 預設組數、次數、器材與預設休息秒數）
     public mutating func toggleExercise(_ exercise: ResistanceExercise) {
         if let index = selectedExercises.firstIndex(where: { $0.exerciseName == exercise.name }) {
             selectedExercises.remove(at: index)
@@ -130,9 +135,11 @@ public struct QuickLogDraft: Equatable, Sendable {
             let detail = ExecutedExerciseDetail(
                 exerciseName: exercise.name,
                 pattern: exercise.pattern,
+                equipment: exercise.equipment,
                 sets: exercise.defaultSets,
                 reps: exercise.defaultReps,
                 weightKg: nil,
+                restSeconds: exercise.defaultRestSeconds,
                 rpe: sRPE
             )
             selectedExercises.append(detail)
@@ -153,6 +160,14 @@ public struct QuickLogDraft: Equatable, Sendable {
         let current = selectedExercises[idx].reps ?? 10
         let clamped = min(Self.maxReps, max(Self.minReps, current + delta))
         selectedExercises[idx].reps = clamped
+    }
+
+    /// 調整特定動作的組間休息秒數 (FITT: Rest Time in seconds)
+    public mutating func adjustRestSeconds(for exerciseName: String, delta: Int) {
+        guard let idx = selectedExercises.firstIndex(where: { $0.exerciseName == exerciseName }) else { return }
+        let current = selectedExercises[idx].restSeconds ?? 90
+        let clamped = min(Self.maxRestSeconds, max(Self.minRestSeconds, current + delta))
+        selectedExercises[idx].restSeconds = clamped
     }
 
     /// 更新特定動作的負重文字與數值 (支援選填、小數點、防呆負數與超大值過濾)
@@ -196,22 +211,24 @@ public struct QuickLogDraft: Equatable, Sendable {
 
         let activePatternsFromExercises = Set(selectedExercises.map(\.pattern))
         let combinedPatterns = selectedPatterns.union(activePatternsFromExercises)
-        let finalPatterns: [MovementPattern] = combinedPatterns.isEmpty
-            ? [.lowerQuad]
-            : Array(combinedPatterns).sorted { $0.rawValue < $1.rawValue }
+        let finalPatterns: [MovementPattern] = (discipline == .strength)
+            ? (combinedPatterns.isEmpty ? [.lowerQuad] : Array(combinedPatterns).sorted { $0.rawValue < $1.rawValue })
+            : []
 
-        let finalizedExercises: [ExecutedExerciseDetail] = selectedExercises.map { detail in
-            var copy = detail
-            if copy.rpe == nil {
-                copy.rpe = sRPE
+        let finalizedExercises: [ExecutedExerciseDetail] = (discipline == .strength)
+            ? selectedExercises.map { detail in
+                var copy = detail
+                if copy.rpe == nil {
+                    copy.rpe = sRPE
+                }
+                return copy
             }
-            return copy
-        }
+            : []
 
         return WorkoutSession(
             startDate: startDate,
             endDate: endDate,
-            discipline: .strength,
+            discipline: discipline,
             durationMinutes: clampedDuration,
             sRPE: sRPE,
             movementPatterns: finalPatterns,

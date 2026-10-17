@@ -5,12 +5,11 @@ import HybridTrainingCore
 public struct ResistanceLibraryView: View {
     @State private var searchText: String = ""
     @State private var selectedPattern: MovementPattern? = nil
+    @State private var selectedEquipment: EquipmentType? = nil
     
     private let allExercises: [ResistanceExercise] = ResistanceExerciseBank.allExercises
     
     public init() {}
-    
-    private var filteredExercises: [ResistanceExercise] = []
     
     public var body: some View {
         ZStack {
@@ -21,7 +20,7 @@ public struct ResistanceLibraryView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(Color(hex: "8B949E"))
-                    TextField("搜尋動作名稱、肌群或英文...", text: $searchText)
+                    TextField("搜尋動作名稱、肌群、器材或英文...", text: $searchText)
                         .foregroundColor(.white)
                         .autocorrectionDisabled()
                     if !searchText.isEmpty {
@@ -41,11 +40,24 @@ public struct ResistanceLibraryView: View {
                 // 動作模式快速篩選 Chip
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        patternChip(nil, title: "全部動作")
+                        patternChip(nil, title: "全部部位")
                         patternChip(.lowerQuad, title: "下肢深蹲")
                         patternChip(.lowerPosterior, title: "下肢硬舉")
                         patternChip(.upperPush, title: "上半身推")
                         patternChip(.upperPull, title: "上半身拉")
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                // 器材種類快速篩選 Chip (Free Weight vs Machine)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        equipmentChip(nil, title: "全部器材")
+                        equipmentChip(.barbell, title: "槓鈴 (Barbell)")
+                        equipmentChip(.dumbbell, title: "啞鈴 (Dumbbell)")
+                        equipmentChip(.machine, title: "固定器械 (Machine)")
+                        equipmentChip(.cable, title: "滑輪纜繩 (Cable)")
+                        equipmentChip(.bodyweight, title: "自重 (Bodyweight)")
                     }
                     .padding(.horizontal, 16)
                 }
@@ -88,6 +100,13 @@ public struct ResistanceLibraryView: View {
                                 Text(exercise.primaryMuscles.joined(separator: ", "))
                                     .font(.system(size: 11))
                                     .foregroundColor(Color(hex: "8B949E"))
+
+                                Text("•")
+                                    .foregroundColor(Color(hex: "8B949E"))
+
+                                Text("休 \(exercise.defaultRestSeconds)s")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color(hex: "3FB950"))
                             }
                             
                             if !exercise.techniqueCues.isEmpty {
@@ -115,10 +134,16 @@ public struct ResistanceLibraryView: View {
         if let pattern = selectedPattern {
             result = result.filter { $0.pattern == pattern }
         }
+        if let equipment = selectedEquipment {
+            result = result.filter { $0.equipment == equipment }
+        }
         if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             result = ResistanceExerciseBank.search(query: searchText)
             if let pattern = selectedPattern {
                 result = result.filter { $0.pattern == pattern }
+            }
+            if let equipment = selectedEquipment {
+                result = result.filter { $0.equipment == equipment }
             }
         }
         return result
@@ -134,6 +159,21 @@ public struct ResistanceLibraryView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "21262D"))
+                .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
+                .cornerRadius(16)
+        }
+    }
+
+    private func equipmentChip(_ eq: EquipmentType?, title: String) -> some View {
+        let isSelected = selectedEquipment == eq
+        return Button {
+            selectedEquipment = eq
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color(hex: "3FB950") : Color(hex: "21262D"))
                 .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
                 .cornerRadius(16)
         }

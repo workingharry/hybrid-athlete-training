@@ -77,7 +77,7 @@ final class QuickLogSheetTests: XCTestCase {
         XCTAssertEqual(restoredDomain.discipline, .strength)
         XCTAssertEqual(restoredDomain.durationMinutes, 50.0, accuracy: 0.001)
         XCTAssertEqual(restoredDomain.sRPE, 8.0, accuracy: 0.001)
-        XCTAssertEqual(restoredDomain.sessionLoadAU, 400.0, accuracy: 0.001)
+        XCTAssertEqual(restoredDomain.loadAU, 400.0, accuracy: 0.001)
         XCTAssertEqual(Set(restoredDomain.movementPatterns), Set([.lowerQuad, .upperPush]))
         XCTAssertEqual(restoredDomain.executedExercises.count, 2)
 

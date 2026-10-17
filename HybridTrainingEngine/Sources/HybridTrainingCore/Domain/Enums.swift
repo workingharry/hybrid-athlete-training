@@ -3,6 +3,9 @@ import Foundation
 /// 訓練專業類別
 public enum TrainingDiscipline: String, Codable, CaseIterable, Sendable {
     case running    // 耐力路跑
+    case cycling    // 戶外/室內自行車 (單車)
+    case swimming   // 游泳 (泳池/開放水域)
+    case rowing     // 划船機 / 划船
     case strength   // 重量肌力訓練
     case mobility   // 活動度與伸展
     case rest       // 完全休息

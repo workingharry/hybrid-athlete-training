@@ -30,6 +30,7 @@ public struct ResistanceExercise: Identifiable, Codable, Equatable, Sendable {
     public let techniqueCues: String                     // 動作核心提示
     public let defaultSets: Int                          // FITT 預設組數 (如 4)
     public let defaultReps: Int                          // FITT 預設次數 (如 8)
+    public let defaultRestSeconds: Int                   // FITT 預設組間休息秒數 (如 90)
     public let defaultRepRange: String                   // FITT 建議區間 (如 "3-5 組 x 6-8 次")
     
     public init(
@@ -42,6 +43,7 @@ public struct ResistanceExercise: Identifiable, Codable, Equatable, Sendable {
         techniqueCues: String,
         defaultSets: Int = 3,
         defaultReps: Int = 10,
+        defaultRestSeconds: Int = 90,
         defaultRepRange: String = "3-4 組 x 8-12 次"
     ) {
         self.id = id
@@ -53,6 +55,7 @@ public struct ResistanceExercise: Identifiable, Codable, Equatable, Sendable {
         self.techniqueCues = techniqueCues
         self.defaultSets = defaultSets
         self.defaultReps = defaultReps
+        self.defaultRestSeconds = defaultRestSeconds
         self.defaultRepRange = defaultRepRange
     }
 }

@@ -38,13 +38,16 @@ public struct DashboardView: View {
                                 .padding(.vertical, 8)
                         }
                         
-                        // 2. 今日推薦主卡片
+                        // 2. 今日推薦主卡片 (支援自由選用跑步/阻力/交叉方案)
                         if let decision = decision {
                             DailyHeroCardView(
                                 workout: decision.primaryRecommendation,
+                                runningOption: decision.todayRunningOption,
+                                strengthOption: decision.todayStrengthOption,
+                                crossOption: decision.todayCrossTrainingOption,
                                 isLockedDueToFatigue: decision.primaryRecommendation.isLockedDueToFatigue,
-                                onScheduleToWatch: {
-                                    scheduleWorkout(decision.primaryRecommendation)
+                                onScheduleToWatch: { selectedWorkout in
+                                    scheduleWorkout(selectedWorkout)
                                 },
                                 onSelectAlternates: {
                                     isShowingAlternates = true
@@ -84,7 +87,7 @@ public struct DashboardView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
-                            Text("記錄重量訓練 (15 秒打卡)")
+                            Text("記錄今日訓練 (15 秒快速打卡)")
                         }
                         .font(.system(size: 16, weight: .bold))
                         .frame(maxWidth: .infinity)

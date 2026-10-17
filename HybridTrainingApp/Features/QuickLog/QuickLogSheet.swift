@@ -31,14 +31,17 @@ public struct QuickLogSheet: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 18) {
-                        // 0. 時間點快速切換膠囊
+                        // 0. 訓練類型快速選擇 (肌力 / 跑步 / 單車 / 游泳)
+                        disciplineSelectorSection
+
+                        // 1. 時間點快速切換膠囊
                         timeOffsetHeaderSection
 
-                        // 1. 部位快速多選 (4 大動作模式)
-                        patternSelectionSection
-
-                        // 2. FITT 動作晶片與組數/次數/重量微調 (選填，維持 15 秒流暢度)
-                        fittExerciseSection
+                        // 2. 部位快速多選 (僅在肌力訓練時展示)
+                        if draft.discipline == .strength {
+                            patternSelectionSection
+                            fittExerciseSection
+                        }
 
                         // 3. 訓練時間長度
                         durationSection
@@ -65,7 +68,7 @@ public struct QuickLogSheet: View {
             .safeAreaInset(edge: .bottom) {
                 bottomSaveBar
             }
-            .navigationTitle("15 秒肌力打卡")
+            .navigationTitle(navTitleForDiscipline)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -86,7 +89,45 @@ public struct QuickLogSheet: View {
         }
     }
 
-    // MARK: - Section 0: Time Offset
+    // MARK: - Section 0: Discipline Selector
+
+    private var disciplineSelectorSection: some View {
+        HStack(spacing: 8) {
+            disciplineTabButton(discipline: .strength, title: "肌力", icon: "dumbbell.fill")
+            disciplineTabButton(discipline: .running, title: "路跑", icon: "figure.run")
+            disciplineTabButton(discipline: .cycling, title: "單車", icon: "figure.outdoor.cycle")
+            disciplineTabButton(discipline: .swimming, title: "游泳", icon: "figure.pool.swim")
+            disciplineTabButton(discipline: .mobility, title: "伸展", icon: "figure.cooldown")
+        }
+    }
+
+    private func disciplineTabButton(discipline: TrainingDiscipline, title: String, icon: String) -> some View {
+        let isSelected = draft.discipline == discipline
+        return Button {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                draft.discipline = discipline
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+                Text(title)
+                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "161B22"))
+            .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "8B949E"))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color(hex: "58A6FF") : Color(hex: "30363D"), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Section 1: Time Offset
 
     private var timeOffsetHeaderSection: some View {
         HStack(spacing: 8) {
@@ -263,11 +304,19 @@ public struct QuickLogSheet: View {
         let isShowingCue = expandedCueExerciseName == detail.exerciseName
 
         return VStack(alignment: .leading, spacing: 8) {
-            // 第一列：動作名稱、FITT 即時摘要、技術提示按鈕、移除鈕
+            // 第一列：動作名稱、器材標籤、FITT 即時摘要、技術提示按鈕、移除鈕
             HStack(spacing: 6) {
                 Text(detail.exerciseName)
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.white)
+
+                Text(detail.equipment.displayName)
+                    .font(.system(size: 9, weight: .bold))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(Color(hex: "21262D"))
+                    .foregroundColor(Color(hex: "58A6FF"))
+                    .cornerRadius(4)
 
                 if let matchedExercise {
                     Text(matchedExercise.defaultRepRange)
@@ -315,8 +364,8 @@ public struct QuickLogSheet: View {
                     .padding(.vertical, 2)
             }
 
-            // 第二列：組數步進器、次數步進器、重量選填輸入框
-            HStack(spacing: 8) {
+            // 第二列：組數步進器、次數步進器、休息步進器、重量輸入框
+            HStack(spacing: 6) {
                 // 組數 (Sets)
                 compactStepperControl(
                     label: "組數",
@@ -333,8 +382,16 @@ public struct QuickLogSheet: View {
                     onIncrement: { draft.adjustReps(for: detail.exerciseName, delta: 1) }
                 )
 
+                // 組間休息 (Rest Time)
+                compactStepperControl(
+                    label: "休息",
+                    valueText: "\(detail.restSeconds ?? 90)s",
+                    onDecrement: { draft.adjustRestSeconds(for: detail.exerciseName, delta: -15) },
+                    onIncrement: { draft.adjustRestSeconds(for: detail.exerciseName, delta: 15) }
+                )
+
                 // 重量選填 (Weight kg)
-                HStack(spacing: 4) {
+                HStack(spacing: 2) {
                     TextField(
                         "負重",
                         text: Binding(
@@ -344,16 +401,16 @@ public struct QuickLogSheet: View {
                     )
                     .keyboardType(.decimalPad)
                     .focused($focusedWeightExerciseName, equals: detail.exerciseName)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.trailing)
-                    .frame(width: 44)
+                    .frame(width: 36)
 
                     Text("kg")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundColor(Color(hex: "8B949E"))
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 6)
                 .background(Color(hex: "090C10"))
                 .cornerRadius(6)
@@ -554,6 +611,18 @@ public struct QuickLogSheet: View {
     }
 
     // MARK: - Helpers
+
+    private var navTitleForDiscipline: String {
+        switch draft.discipline {
+        case .strength: return "15 秒肌力打卡"
+        case .running: return "15 秒路跑打卡"
+        case .cycling: return "15 秒單車打卡"
+        case .swimming: return "15 秒游泳打卡"
+        case .rowing: return "15 秒划船打卡"
+        case .mobility: return "15 秒活動度打卡"
+        case .rest: return "完全休息記錄"
+        }
+    }
 
     private func patternLabel(for pattern: MovementPattern) -> String {
         switch pattern {
