@@ -1,7 +1,24 @@
+# Xcode & macOS
 .DS_Store
+*/.DS_Store
 .build/
 .swiftpm/
 xcuserdata/
 *.xcuserdata/
 DerivedData/
 *.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Fastlane & CocoaPods (if any)
+Pods/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Temporary / OS
+*.swp
+*~
+.env

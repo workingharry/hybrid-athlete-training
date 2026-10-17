@@ -19,7 +19,7 @@ struct HybridTrainingApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            MainTabView()
                 .preferredColorScheme(.dark)
         }
         .modelContainer(sharedModelContainer)

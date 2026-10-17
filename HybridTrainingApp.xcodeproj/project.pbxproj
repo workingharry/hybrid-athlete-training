@@ -12,9 +12,14 @@
 		4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */; };
 		588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */; };
 		6069CD99BCBA962B8548A86B /* HybridTrainingStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 726B12F138FBD6B6FECD95C9 /* HybridTrainingStorage */; };
+		61A26B9FF4388156E10BE6DD /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FAEB558BC3548B244F5976 /* AnalyticsView.swift */; };
 		96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */; };
+		9FDFE80A53B58BB209E494A3 /* LogbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A7CE20AC5E875E72D327C66 /* LogbookView.swift */; };
+		AA2F942976A0B1B9ED10B6EE /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E731809F62F5AF68A92ECF02 /* MainTabView.swift */; };
+		ABF45843C0770A6B31FAE5C1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */; };
 		B370E26FDC22B7316EEB1B90 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80DAA0329FA7289E15A6A117 /* DashboardView.swift */; };
 		B7DC04638C3F2CB67D98D663 /* SpikeAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */; };
+		C4F5BEEE3B3B9A034B60BE77 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 242B0B8E0A4B949A0AD10711 /* Assets.xcassets */; };
 		C642B7620D1CDBD2F6BA9ED5 /* HybridTrainingCore in Frameworks */ = {isa = PBXBuildFile; productRef = C2C23E435AC00C8DB31DDE0A /* HybridTrainingCore */; };
 		CD06F551EDD595BC80E418CB /* StatusCapsuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */; };
 		D7D454F07C28BF26FC0F48F3 /* WorkoutKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */; };
@@ -22,19 +27,24 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		242B0B8E0A4B949A0AD10711 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLogSheet.swift; sourceTree = "<group>"; };
 		2F2332553E9B7DEE5B4760E7 /* HybridTrainingEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HybridTrainingEngine; path = HybridTrainingEngine; sourceTree = SOURCE_ROOT; };
 		348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCapsuleView.swift; sourceTree = "<group>"; };
 		74D5266F600E741F15164DB3 /* HybridTrainingApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HybridTrainingApp.entitlements; sourceTree = "<group>"; };
 		7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutKitAdapter.swift; sourceTree = "<group>"; };
+		7A7CE20AC5E875E72D327C66 /* LogbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogbookView.swift; sourceTree = "<group>"; };
 		80DAA0329FA7289E15A6A117 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuscleCooldownCardView.swift; sourceTree = "<group>"; };
+		9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditViewModel.swift; sourceTree = "<group>"; };
 		BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditView.swift; sourceTree = "<group>"; };
 		CA61048D5429A75972A3CCE2 /* HybridTrainingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HybridTrainingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridTrainingApp.swift; sourceTree = "<group>"; };
+		D1FAEB558BC3548B244F5976 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
 		D71C83C9F2AB1D9F2E86BC12 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E21FC2C86730F674AAB25932 /* DailyHeroCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHeroCardView.swift; sourceTree = "<group>"; };
+		E731809F62F5AF68A92ECF02 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		F51439135618587B69BDBC11 /* HealthKitAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitAdapter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -62,6 +72,14 @@
 			path = HybridTrainingApp;
 			sourceTree = "<group>";
 		};
+		200578CFF0EB0EA98D456906 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		4492C236BA76CB1546552474 /* Components */ = {
 			isa = PBXGroup;
 			children = (
@@ -70,6 +88,14 @@
 				348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		49721665D07BA4D89A576811 /* Logbook */ = {
+			isa = PBXGroup;
+			children = (
+				7A7CE20AC5E875E72D327C66 /* LogbookView.swift */,
+			);
+			path = Logbook;
 			sourceTree = "<group>";
 		};
 		4E0638B47D0937FE4C4B2703 /* Packages */ = {
@@ -109,8 +135,11 @@
 		84D20099C75A285DFC696801 /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				E8DDF87C81BA090734822328 /* Analytics */,
 				AD0CF326AC6AA93AECFBF5A4 /* Dashboard */,
+				49721665D07BA4D89A576811 /* Logbook */,
 				F72F8CDDF90267250D2AB989 /* QuickLog */,
+				200578CFF0EB0EA98D456906 /* Settings */,
 				AFB2FFF55C07BFB9D15D798A /* SpikesAndAudit */,
 			);
 			path = Features;
@@ -138,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */,
+				E731809F62F5AF68A92ECF02 /* MainTabView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -158,6 +188,14 @@
 			path = HealthKit;
 			sourceTree = "<group>";
 		};
+		E8DDF87C81BA090734822328 /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				D1FAEB558BC3548B244F5976 /* AnalyticsView.swift */,
+			);
+			path = Analytics;
+			sourceTree = "<group>";
+		};
 		F72F8CDDF90267250D2AB989 /* QuickLog */ = {
 			isa = PBXGroup;
 			children = (
@@ -169,6 +207,7 @@
 		FDA4740B88F4A9CAD646D7A9 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				242B0B8E0A4B949A0AD10711 /* Assets.xcassets */,
 				74D5266F600E741F15164DB3 /* HybridTrainingApp.entitlements */,
 				D71C83C9F2AB1D9F2E86BC12 /* Info.plist */,
 			);
@@ -183,6 +222,7 @@
 			buildConfigurationList = 9A41DD0426C8B470A88B0EC9 /* Build configuration list for PBXNativeTarget "HybridTrainingApp" */;
 			buildPhases = (
 				54190DA59A7B6ACC39285A0C /* Sources */,
+				E6F7C98D5231FB4B19CE5BBE /* Resources */,
 				8D8FED8BFB93F4532D92922A /* Frameworks */,
 			);
 			buildRules = (
@@ -207,6 +247,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					FAEAC46054D9BB07749B2E8E = {
+						DevelopmentTeam = S452YTSQXZ;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = DAE1630D286F4B04642B96E7 /* Build configuration list for PBXProject "HybridTrainingApp" */;
@@ -231,17 +275,32 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		E6F7C98D5231FB4B19CE5BBE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4F5BEEE3B3B9A034B60BE77 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		54190DA59A7B6ACC39285A0C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				61A26B9FF4388156E10BE6DD /* AnalyticsView.swift in Sources */,
 				FD82B5FB25FF142433B63AE9 /* DailyHeroCardView.swift in Sources */,
 				B370E26FDC22B7316EEB1B90 /* DashboardView.swift in Sources */,
 				3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */,
 				24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */,
+				9FDFE80A53B58BB209E494A3 /* LogbookView.swift in Sources */,
+				AA2F942976A0B1B9ED10B6EE /* MainTabView.swift in Sources */,
 				96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */,
 				4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */,
+				ABF45843C0770A6B31FAE5C1 /* SettingsView.swift in Sources */,
 				B7DC04638C3F2CB67D98D663 /* SpikeAuditView.swift in Sources */,
 				588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */,
 				CD06F551EDD595BC80E418CB /* StatusCapsuleView.swift in Sources */,
@@ -258,7 +317,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HybridTrainingApp/Resources/HybridTrainingApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = S452YTSQXZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HybridTrainingApp/Resources/Info.plist;
@@ -281,7 +342,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HybridTrainingApp/Resources/HybridTrainingApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = S452YTSQXZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HybridTrainingApp/Resources/Info.plist;

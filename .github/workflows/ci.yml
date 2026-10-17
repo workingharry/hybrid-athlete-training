@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-engine:
+    name: Test HybridTrainingEngine
+    runs-on: macos-14
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.4.app || true
+      
+    - name: Run Domain Core Tests
+      working-directory: ./HybridTrainingEngine
+      run: swift test -v
