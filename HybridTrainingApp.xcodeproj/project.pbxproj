@@ -1,0 +1,462 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */; };
+		3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51439135618587B69BDBC11 /* HealthKitAdapter.swift */; };
+		4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */; };
+		588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */; };
+		6069CD99BCBA962B8548A86B /* HybridTrainingStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 726B12F138FBD6B6FECD95C9 /* HybridTrainingStorage */; };
+		96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */; };
+		B370E26FDC22B7316EEB1B90 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80DAA0329FA7289E15A6A117 /* DashboardView.swift */; };
+		B7DC04638C3F2CB67D98D663 /* SpikeAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */; };
+		C642B7620D1CDBD2F6BA9ED5 /* HybridTrainingCore in Frameworks */ = {isa = PBXBuildFile; productRef = C2C23E435AC00C8DB31DDE0A /* HybridTrainingCore */; };
+		CD06F551EDD595BC80E418CB /* StatusCapsuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */; };
+		D7D454F07C28BF26FC0F48F3 /* WorkoutKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */; };
+		FD82B5FB25FF142433B63AE9 /* DailyHeroCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21FC2C86730F674AAB25932 /* DailyHeroCardView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLogSheet.swift; sourceTree = "<group>"; };
+		2F2332553E9B7DEE5B4760E7 /* HybridTrainingEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HybridTrainingEngine; path = HybridTrainingEngine; sourceTree = SOURCE_ROOT; };
+		348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCapsuleView.swift; sourceTree = "<group>"; };
+		74D5266F600E741F15164DB3 /* HybridTrainingApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HybridTrainingApp.entitlements; sourceTree = "<group>"; };
+		7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutKitAdapter.swift; sourceTree = "<group>"; };
+		80DAA0329FA7289E15A6A117 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuscleCooldownCardView.swift; sourceTree = "<group>"; };
+		AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditViewModel.swift; sourceTree = "<group>"; };
+		BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditView.swift; sourceTree = "<group>"; };
+		CA61048D5429A75972A3CCE2 /* HybridTrainingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HybridTrainingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridTrainingApp.swift; sourceTree = "<group>"; };
+		D71C83C9F2AB1D9F2E86BC12 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E21FC2C86730F674AAB25932 /* DailyHeroCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHeroCardView.swift; sourceTree = "<group>"; };
+		F51439135618587B69BDBC11 /* HealthKitAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitAdapter.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8D8FED8BFB93F4532D92922A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C642B7620D1CDBD2F6BA9ED5 /* HybridTrainingCore in Frameworks */,
+				6069CD99BCBA962B8548A86B /* HybridTrainingStorage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		11BEA35C035DFDCDC620FCEE /* HybridTrainingApp */ = {
+			isa = PBXGroup;
+			children = (
+				B6714D70AA16A18C67EE98C8 /* App */,
+				84D20099C75A285DFC696801 /* Features */,
+				59D2EC0F22F03D0112604BAE /* Infrastructure */,
+				FDA4740B88F4A9CAD646D7A9 /* Resources */,
+			);
+			path = HybridTrainingApp;
+			sourceTree = "<group>";
+		};
+		4492C236BA76CB1546552474 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				E21FC2C86730F674AAB25932 /* DailyHeroCardView.swift */,
+				8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */,
+				348922EB750E3CA6C3C41566 /* StatusCapsuleView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		4E0638B47D0937FE4C4B2703 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				2F2332553E9B7DEE5B4760E7 /* HybridTrainingEngine */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		51DD748341CCB9A5A2B8A656 = {
+			isa = PBXGroup;
+			children = (
+				11BEA35C035DFDCDC620FCEE /* HybridTrainingApp */,
+				4E0638B47D0937FE4C4B2703 /* Packages */,
+				606B26B29DFC9665B8E9BBB2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		59D2EC0F22F03D0112604BAE /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				E5FC65D0999D17354B74A573 /* HealthKit */,
+				D93DD0EC894EF77A89D433ED /* WorkoutKit */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		606B26B29DFC9665B8E9BBB2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CA61048D5429A75972A3CCE2 /* HybridTrainingApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		84D20099C75A285DFC696801 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				AD0CF326AC6AA93AECFBF5A4 /* Dashboard */,
+				F72F8CDDF90267250D2AB989 /* QuickLog */,
+				AFB2FFF55C07BFB9D15D798A /* SpikesAndAudit */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		AD0CF326AC6AA93AECFBF5A4 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				80DAA0329FA7289E15A6A117 /* DashboardView.swift */,
+				4492C236BA76CB1546552474 /* Components */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		AFB2FFF55C07BFB9D15D798A /* SpikesAndAudit */ = {
+			isa = PBXGroup;
+			children = (
+				BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */,
+				AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */,
+			);
+			path = SpikesAndAudit;
+			sourceTree = "<group>";
+		};
+		B6714D70AA16A18C67EE98C8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D93DD0EC894EF77A89D433ED /* WorkoutKit */ = {
+			isa = PBXGroup;
+			children = (
+				7544F2D3D812C4AB7D13CA26 /* WorkoutKitAdapter.swift */,
+			);
+			path = WorkoutKit;
+			sourceTree = "<group>";
+		};
+		E5FC65D0999D17354B74A573 /* HealthKit */ = {
+			isa = PBXGroup;
+			children = (
+				F51439135618587B69BDBC11 /* HealthKitAdapter.swift */,
+			);
+			path = HealthKit;
+			sourceTree = "<group>";
+		};
+		F72F8CDDF90267250D2AB989 /* QuickLog */ = {
+			isa = PBXGroup;
+			children = (
+				2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */,
+			);
+			path = QuickLog;
+			sourceTree = "<group>";
+		};
+		FDA4740B88F4A9CAD646D7A9 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				74D5266F600E741F15164DB3 /* HybridTrainingApp.entitlements */,
+				D71C83C9F2AB1D9F2E86BC12 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FAEAC46054D9BB07749B2E8E /* HybridTrainingApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A41DD0426C8B470A88B0EC9 /* Build configuration list for PBXNativeTarget "HybridTrainingApp" */;
+			buildPhases = (
+				54190DA59A7B6ACC39285A0C /* Sources */,
+				8D8FED8BFB93F4532D92922A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HybridTrainingApp;
+			packageProductDependencies = (
+				C2C23E435AC00C8DB31DDE0A /* HybridTrainingCore */,
+				726B12F138FBD6B6FECD95C9 /* HybridTrainingStorage */,
+			);
+			productName = HybridTrainingApp;
+			productReference = CA61048D5429A75972A3CCE2 /* HybridTrainingApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E82990AEDBD7A53306A79C58 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = DAE1630D286F4B04642B96E7 /* Build configuration list for PBXProject "HybridTrainingApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 51DD748341CCB9A5A2B8A656;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BFDF1C08C7D83A5FE08D9A28 /* XCLocalSwiftPackageReference "HybridTrainingEngine" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 606B26B29DFC9665B8E9BBB2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FAEAC46054D9BB07749B2E8E /* HybridTrainingApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		54190DA59A7B6ACC39285A0C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD82B5FB25FF142433B63AE9 /* DailyHeroCardView.swift in Sources */,
+				B370E26FDC22B7316EEB1B90 /* DashboardView.swift in Sources */,
+				3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */,
+				24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */,
+				96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */,
+				4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */,
+				B7DC04638C3F2CB67D98D663 /* SpikeAuditView.swift in Sources */,
+				588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */,
+				CD06F551EDD595BC80E418CB /* StatusCapsuleView.swift in Sources */,
+				D7D454F07C28BF26FC0F48F3 /* WorkoutKitAdapter.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5318279153115E021B36FBD7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HybridTrainingApp/Resources/HybridTrainingApp.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HybridTrainingApp/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vibe.HybridTrainingApp;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		74263F120A5B022AB17D9493 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HybridTrainingApp/Resources/HybridTrainingApp.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HybridTrainingApp/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vibe.HybridTrainingApp;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		8D0137D9861FAFB26A76CA73 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D4A4D8C185546004B9B2841D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9A41DD0426C8B470A88B0EC9 /* Build configuration list for PBXNativeTarget "HybridTrainingApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5318279153115E021B36FBD7 /* Debug */,
+				74263F120A5B022AB17D9493 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DAE1630D286F4B04642B96E7 /* Build configuration list for PBXProject "HybridTrainingApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D4A4D8C185546004B9B2841D /* Debug */,
+				8D0137D9861FAFB26A76CA73 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BFDF1C08C7D83A5FE08D9A28 /* XCLocalSwiftPackageReference "HybridTrainingEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = HybridTrainingEngine;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		726B12F138FBD6B6FECD95C9 /* HybridTrainingStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HybridTrainingStorage;
+		};
+		C2C23E435AC00C8DB31DDE0A /* HybridTrainingCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HybridTrainingCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = E82990AEDBD7A53306A79C58 /* Project object */;
+}
