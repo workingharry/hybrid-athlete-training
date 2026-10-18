@@ -203,6 +203,25 @@ public struct QuickLogDraft: Equatable, Sendable {
         }
     }
 
+    /// 套用課表範本
+    public mutating func applyTemplate(_ template: WorkoutRoutineTemplate) {
+        discipline = template.discipline
+        selectedPatterns = Set(template.targetPatterns)
+        durationMinutes = template.estimatedDurationMinutes
+        sRPE = template.defaultSRPE
+
+        selectedExercises = template.exercises.map { item in
+            item.toExecutedDetail(rpe: template.defaultSRPE)
+        }
+
+        weightTextMap.removeAll()
+        for item in template.exercises {
+            if let w = item.targetWeightKg, w > 0 {
+                weightTextMap[item.exerciseName] = (w.truncatingRemainder(dividingBy: 1) == 0) ? String(format: "%.0f", w) : String(format: "%.1f", w)
+            }
+        }
+    }
+
     /// 建構最終領域實體 `WorkoutSession`
     public func buildWorkoutSession(referenceDate: Date = Date(), calendar: Calendar = .current) -> WorkoutSession {
         let endDate = timeOffset.resolveEndDate(from: referenceDate, calendar: calendar)

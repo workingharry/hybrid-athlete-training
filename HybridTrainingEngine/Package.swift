@@ -29,7 +29,10 @@ let package = Package(
         ),
         .testTarget(
             name: "HybridTrainingCoreTests",
-            dependencies: ["HybridTrainingCore"]
+            dependencies: [
+                "HybridTrainingCore",
+                "HybridTrainingStorage"
+            ]
         ),
     ]
 )

@@ -9,7 +9,10 @@ public struct DashboardView: View {
     @Query(sort: \SDWorkoutSession.startDate, order: .reverse) private var storedSessions: [SDWorkoutSession]
     
     @State private var decision: DailyDecision?
+    @State private var weeklySummary: WeeklyHybridSummary?
     @State private var isShowingQuickLog: Bool = false
+    @State private var isShowingRoutineLibrary: Bool = false
+    @State private var selectedTemplateForQuickLog: WorkoutRoutineTemplate? = nil
     @State private var isShowingAlternates: Bool = false
     @State private var isShowingAudit: Bool = false
     @State private var scheduleStatusMessage: String?
@@ -38,7 +41,12 @@ public struct DashboardView: View {
                                 .padding(.vertical, 8)
                         }
                         
-                        // 2. 今日推薦主卡片 (支援自由選用跑步/阻力/交叉方案)
+                        // 2. 週週期雙軌平衡環 (耐力/肌力/模式三重環)
+                        if let summary = weeklySummary {
+                            WeeklyRingsCardView(summary: summary)
+                        }
+
+                        // 3. 今日推薦主卡片 (支援自由選用跑步/阻力/交叉方案)
                         if let decision = decision {
                             DailyHeroCardView(
                                 workout: decision.primaryRecommendation,
@@ -55,12 +63,12 @@ public struct DashboardView: View {
                             )
                         }
                         
-                        // 3. 4 大動作模式冷卻時鐘
+                        // 4. 4 大動作模式冷卻時鐘
                         if let decision = decision {
                             MuscleCooldownCardView(cooldowns: decision.cooldowns)
                         }
                         
-                        // 4. 排程狀態提示
+                        // 5. 排程狀態提示
                         if let message = scheduleStatusMessage {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
@@ -76,29 +84,58 @@ public struct DashboardView: View {
                         }
                     }
                     .padding(16)
-                    .padding(.bottom, 80) // 預留底部按鈕高度
+                    .padding(.bottom, 90) // 預留底部雙按鈕高度
                 }
                 
-                // 5. 底部常駐 15 秒打卡操作鈕
-                VStack {
+                // 6. 底部常駐雙操作鈕 (常用課表庫 + 15 秒打卡)
+                VStack(spacing: 0) {
                     Spacer()
-                    Button {
-                        isShowingQuickLog = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus.circle.fill")
-                            Text("記錄今日訓練 (15 秒快速打卡)")
+                    HStack(spacing: 10) {
+                        Button {
+                            isShowingRoutineLibrary = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "folder.fill")
+                                Text("常用課表")
+                            }
+                            .font(.system(size: 14, weight: .bold))
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .background(Color(hex: "161B22"))
+                            .foregroundColor(Color(hex: "58A6FF"))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(hex: "30363D"), lineWidth: 1)
+                            )
                         }
-                        .font(.system(size: 16, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(hex: "3FB950"))
-                        .foregroundColor(Color(hex: "090C10"))
-                        .cornerRadius(12)
-                        .shadow(color: Color(hex: "3FB950").opacity(0.3), radius: 10, y: 4)
+
+                        Button {
+                            selectedTemplateForQuickLog = nil
+                            isShowingQuickLog = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("記錄訓練 (15 秒快速打卡)")
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(hex: "3FB950"))
+                            .foregroundColor(Color(hex: "090C10"))
+                            .cornerRadius(12)
+                            .shadow(color: Color(hex: "3FB950").opacity(0.3), radius: 10, y: 4)
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(hex: "090C10").opacity(0.0), Color(hex: "090C10").opacity(0.95)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                 }
             }
             .navigationTitle("Hybrid Training")
@@ -125,8 +162,15 @@ public struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $isShowingQuickLog) {
-                QuickLogSheet {
+                QuickLogSheet(initialTemplate: selectedTemplateForQuickLog) {
+                    selectedTemplateForQuickLog = nil
                     refreshDailyDecision()
+                }
+            }
+            .sheet(isPresented: $isShowingRoutineLibrary) {
+                RoutineLibrarySheet { selectedTemplate in
+                    selectedTemplateForQuickLog = selectedTemplate
+                    isShowingQuickLog = true
                 }
             }
             .sheet(isPresented: $isShowingAudit) {
@@ -228,8 +272,16 @@ public struct DashboardView: View {
                 configuration: .default
             )
             
+            // 6. 計算週週期雙軌平衡環指標
+            let evaluatedWeeklySummary = WeeklyHybridSummary.calculate(
+                sessions: mergedSessions,
+                referenceDate: now,
+                calendar: calendar
+            )
+            
             await MainActor.run {
                 self.decision = evaluatedDecision
+                self.weeklySummary = evaluatedWeeklySummary
             }
         }
     }

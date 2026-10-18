@@ -11,7 +11,10 @@ public struct SettingsView: View {
     @AppStorage("custom_squat_cooldown") private var customSquatCooldown: Double = 48.0
     @AppStorage("custom_deadlift_cooldown") private var customDeadliftCooldown: Double = 48.0
     
+    @AppStorage("enable_nutrition_module") private var enableNutritionModule: Bool = false
+    
     @State private var isShowingAudit: Bool = false
+    @State private var isShowingRoutineLibrary: Bool = false
     
     public init(healthKitAdapter: HealthKitAdapter = HealthKitAdapter()) {
         self.healthKitAdapter = healthKitAdapter
@@ -91,13 +94,26 @@ public struct SettingsView: View {
                     }
                     .listRowBackground(Color(hex: "161B22"))
                     
-                    // 4. 硬體探針與動作庫
-                    Section(header: Text("動作庫與診斷工具").foregroundColor(Color(hex: "8B949E"))) {
+                    // 4. 課表庫、動作庫與診斷工具
+                    Section(header: Text("訓練模組與課表管理").foregroundColor(Color(hex: "8B949E"))) {
+                        Button {
+                            isShowingRoutineLibrary = true
+                        } label: {
+                            HStack {
+                                Label("常用課表庫與自訂範本", systemImage: "folder.fill")
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color(hex: "8B949E"))
+                            }
+                        }
+
                         NavigationLink {
                             ResistanceLibraryView()
                         } label: {
                             HStack {
-                                Label("阻力訓練動作庫 (20+ 項)", systemImage: "dumbbell.fill")
+                                Label("阻力訓練動作庫 (30+ 項)", systemImage: "dumbbell.fill")
                                     .foregroundColor(.white)
                                 Spacer()
                             }
@@ -115,6 +131,22 @@ public struct SettingsView: View {
                                     .foregroundColor(Color(hex: "8B949E"))
                             }
                         }
+                    }
+                    .listRowBackground(Color(hex: "161B22"))
+
+                    // 5. 飲食與能量攝取模組 (選用 / 實驗中功能)
+                    Section(header: Text("飲食與能量補給管理 (選用模組)").foregroundColor(Color(hex: "8B949E")),
+                            footer: Text("啟用後可利用 iPhone 原生相機與 Siri AI 捷徑拍攝每日餐點紀錄攝取卡路里與蛋白質，完全遵循 Local-First 隱私原則。").foregroundColor(Color(hex: "8B949E"))) {
+                        Toggle(isOn: $enableNutritionModule) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("啟用飲食與營養攝取追蹤")
+                                    .foregroundColor(.white)
+                                Text("支援 Vision 原生拍照與熱量計算")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(hex: "8B949E"))
+                            }
+                        }
+                        .tint(Color(hex: "3FB950"))
                     }
                     .listRowBackground(Color(hex: "161B22"))
                     
@@ -160,6 +192,9 @@ public struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $isShowingAudit) {
                 SpikeAuditView(healthKitAdapter: healthKitAdapter)
+            }
+            .sheet(isPresented: $isShowingRoutineLibrary) {
+                RoutineLibrarySheet()
             }
         }
     }

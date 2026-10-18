@@ -16,11 +16,17 @@ public struct QuickLogSheet: View {
     @State private var draft = QuickLogDraft()
     @State private var expandedCueExerciseName: String? = nil
     @State private var saveErrorMessage: String? = nil
+    @State private var isShowingRoutineLibrary: Bool = false
     @FocusState private var focusedWeightExerciseName: String?
 
     public let onSaved: (() -> Void)?
 
-    public init(onSaved: (() -> Void)? = nil) {
+    public init(initialTemplate: WorkoutRoutineTemplate? = nil, onSaved: (() -> Void)? = nil) {
+        if let template = initialTemplate {
+            var initialDraft = QuickLogDraft()
+            initialDraft.applyTemplate(template)
+            _draft = State(initialValue: initialDraft)
+        }
         self.onSaved = onSaved
     }
 
@@ -77,6 +83,18 @@ public struct QuickLogSheet: View {
                     }
                     .foregroundColor(Color(hex: "8B949E"))
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingRoutineLibrary = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder.fill")
+                            Text("常用課表")
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color(hex: "58A6FF"))
+                    }
+                }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("完成") {
@@ -84,6 +102,11 @@ public struct QuickLogSheet: View {
                     }
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color(hex: "58A6FF"))
+                }
+            }
+            .sheet(isPresented: $isShowingRoutineLibrary) {
+                RoutineLibrarySheet { selectedTemplate in
+                    draft.applyTemplate(selectedTemplate)
                 }
             }
         }
