@@ -4,19 +4,9 @@ import HybridTrainingCore
 /// Apple 原生極簡風格：我的週課表與衝衝突軟性建議 (WeeklyScheduleView)
 public struct WeeklyScheduleView: View {
     @State private var focusMode: Int = 1 // 0: 增肌優先, 1: 平衡, 2: 跑步優先
+    @State private var plan: WeeklySchedulePlan = WeeklyScheduleEngine.schedule(for: .balanced)
     @State private var isSoftSuggestionDismissed: Bool = false
     @State private var isShowingRoutineLibrary: Bool = false
-
-    // 一週排程項目
-    @State private var weeklyDays: [(day: String, title: String, tag: String, category: String, hasWarning: Bool)] = [
-        ("一", "推：胸、肩、三頭", "力量", "力量", false),
-        ("二", "輕鬆跑 40 分鐘 · Zone 2", "跑步", "跑步", false),
-        ("三", "拉：背、二頭", "力量", "力量", false),
-        ("四", "完全休息 · 活動度伸展", "恢復", "恢復", false),
-        ("五", "腿：深蹲、硬舉", "力量", "力量", false),
-        ("六", "長跑 90 分鐘", "需留意", "跑步", true),
-        ("日", "完全休息", "恢復", "恢復", false)
-    ]
 
     public init() {}
 
@@ -33,24 +23,35 @@ public struct WeeklyScheduleView: View {
                             .foregroundColor(Color(hex: "8E8E93"))
 
                         // 2. 側重分段選擇器 (增肌優先 / 平衡 / 跑步優先)
-                        Picker("訓練側重", selection: $focusMode) {
-                            Text("增肌優先").tag(0)
-                            Text("平衡").tag(1)
-                            Text("跑步優先").tag(2)
+                        Picker("訓練側重", selection: Binding(
+                            get: { focusMode },
+                            set: { newValue in
+                                focusMode = newValue
+                                if let pref = WeeklyFocusPreference(rawValue: newValue) {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        plan = WeeklyScheduleEngine.schedule(for: pref)
+                                        isSoftSuggestionDismissed = false
+                                    }
+                                }
+                            }
+                        )) {
+                            ForEach(WeeklyFocusPreference.allCases, id: \.rawValue) { pref in
+                                Text(pref.displayName).tag(pref.rawValue)
+                            }
                         }
                         .pickerStyle(.segmented)
                         .padding(.vertical, 4)
 
                         // 3. 週一至週日課表清單
                         VStack(spacing: 8) {
-                            ForEach(weeklyDays.indices, id: \.self) { idx in
+                            ForEach(plan.items.indices, id: \.self) { idx in
                                 scheduleRow(index: idx)
                             }
                         }
 
-                        // 4. 運動學衝突軟性建議橫幅 (Screenshot 2)
-                        if !isSoftSuggestionDismissed {
-                            clashSuggestionCard
+                        // 4. 運動學衝突軟性建議橫幅
+                        if !isSoftSuggestionDismissed, let suggestion = plan.softClashSuggestion {
+                            clashSuggestionCard(suggestion)
                         }
                     }
                     .padding(16)
@@ -76,10 +77,10 @@ public struct WeeklyScheduleView: View {
     }
 
     private func scheduleRow(index: Int) -> some View {
-        let item = weeklyDays[index]
+        let item = plan.items[index]
         return HStack(spacing: 12) {
             // 星期
-            Text(item.day)
+            Text(item.dayOfWeek)
                 .font(.system(size: 15, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 28, alignment: .leading)
@@ -103,7 +104,7 @@ public struct WeeklyScheduleView: View {
             }
 
             // 類別標籤 (力量 / 跑步 / 恢復)
-            Text(item.category)
+            Text(item.category.rawValue)
                 .font(.system(size: 12))
                 .foregroundColor(Color(hex: "8E8E93"))
         }
@@ -113,30 +114,33 @@ public struct WeeklyScheduleView: View {
         .cornerRadius(10)
     }
 
-    private var clashSuggestionCard: some View {
+    private func clashSuggestionCard(_ suggestion: SoftClashSuggestion) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("週六長跑與週五腿日太近")
+                Text(suggestion.title)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color(hex: "FF9F0A"))
                 Spacer()
-                Text("軟性建議")
+                Text(suggestion.badge)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(Color(hex: "8E8E93"))
             }
 
-            Text("相隔不足 24 小時，長跑屬高腿部負荷。你可以縮短、改日，或直接維持原計劃，引擎會記住你的選擇。")
+            Text(suggestion.explanation)
                 .font(.system(size: 13))
                 .foregroundColor(Color(hex: "E5E5EA"))
                 .lineSpacing(4)
 
             HStack(spacing: 8) {
                 Button {
-                    weeklyDays[5].title = "長跑 70 分鐘 · 降載"
-                    weeklyDays[5].hasWarning = false
+                    // 縮短長跑時長
+                    if let satIdx = plan.items.firstIndex(where: { $0.dayOfWeek == "六" }) {
+                        plan.items[satIdx].title = "長跑 70 分鐘 · 降載"
+                        plan.items[satIdx].hasWarning = false
+                    }
                     isSoftSuggestionDismissed = true
                 } label: {
-                    Text("縮短為 70 分鐘")
+                    Text(suggestion.optionShortenTitle)
                         .font(.system(size: 12, weight: .bold))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
@@ -146,15 +150,25 @@ public struct WeeklyScheduleView: View {
                 }
 
                 Button {
-                    let run = weeklyDays[5].title
-                    weeklyDays[5].title = "完全休息"
-                    weeklyDays[5].category = "恢復"
-                    weeklyDays[5].hasWarning = false
-                    weeklyDays[6].title = run
-                    weeklyDays[6].category = "跑步"
+                    // 移至週日
+                    if let satIdx = plan.items.firstIndex(where: { $0.dayOfWeek == "六" }),
+                       let sunIdx = plan.items.firstIndex(where: { $0.dayOfWeek == "日" }) {
+                        let originalTitle = plan.items[satIdx].title
+                        let originalDiscipline = plan.items[satIdx].discipline
+                        plan.items[satIdx].title = "完全休息"
+                        plan.items[satIdx].category = .recovery
+                        plan.items[satIdx].discipline = .rest
+                        plan.items[satIdx].tag = "恢復"
+                        plan.items[satIdx].hasWarning = false
+
+                        plan.items[sunIdx].title = originalTitle
+                        plan.items[sunIdx].category = .running
+                        plan.items[sunIdx].discipline = originalDiscipline
+                        plan.items[sunIdx].tag = "跑步"
+                    }
                     isSoftSuggestionDismissed = true
                 } label: {
-                    Text("移到週日")
+                    Text(suggestion.optionMoveTitle)
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
