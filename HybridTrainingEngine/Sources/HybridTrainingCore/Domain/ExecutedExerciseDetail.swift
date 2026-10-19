@@ -11,7 +11,8 @@ public struct ExecutedExerciseDetail: Identifiable, Codable, Equatable, Sendable
     public var weightKg: Double?                         // FITT: 負重重量 (如 100.0 kg)
     public var restSeconds: Int?                         // FITT: 組間休息秒數 (如 90)
     public var rpe: Double?                              // FITT: 動作級自覺強度 (如 8.0)
-    
+    public var setsList: [ExerciseSetEntry]?             // 逐組明細 (Set-by-set entries)
+
     public init(
         id: UUID = UUID(),
         exerciseName: String,
@@ -21,19 +22,45 @@ public struct ExecutedExerciseDetail: Identifiable, Codable, Equatable, Sendable
         reps: Int? = 10,
         weightKg: Double? = nil,
         restSeconds: Int? = nil,
-        rpe: Double? = nil
+        rpe: Double? = nil,
+        setsList: [ExerciseSetEntry]? = nil
     ) {
         self.id = id
         self.exerciseName = exerciseName
         self.pattern = pattern
         self.equipment = equipment
-        self.sets = sets
-        self.reps = reps
-        self.weightKg = weightKg
+        self.setsList = setsList
         self.restSeconds = restSeconds
         self.rpe = rpe
+
+        if let list = setsList, !list.isEmpty {
+            self.sets = list.count
+            self.reps = list.first?.reps ?? reps
+            self.weightKg = list.first?.weightKg ?? weightKg
+        } else {
+            self.sets = sets
+            self.reps = reps
+            self.weightKg = weightKg
+        }
     }
-    
+
+    /// 完成組數計算
+    public var completedSetsCount: Int {
+        if let list = setsList, !list.isEmpty {
+            return list.filter(\.isCompleted).count
+        }
+        return sets ?? 0
+    }
+
+    /// 總訓練容量 (kg)
+    public var totalVolumeLoadKg: Double {
+        if let list = setsList, !list.isEmpty {
+            return list.filter(\.isCompleted).reduce(0.0) { $0 + $1.volumeKg }
+        }
+        guard let s = sets, let r = reps, let w = weightKg, w > 0 else { return 0.0 }
+        return Double(s * r) * w
+    }
+
     /// 簡潔格式化字串 (如 "槓鈴後深蹲 [槓鈴] 4組 x 8次 @ 100kg (休90s)")
     public var summaryDescription: String {
         var parts: [String] = []
@@ -44,16 +71,16 @@ public struct ExecutedExerciseDetail: Identifiable, Codable, Equatable, Sendable
         } else if let r = reps {
             parts.append("\(r)次")
         }
-        
+
         if let w = weightKg, w > 0 {
             let weightStr = w.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(w))kg" : String(format: "%.1fkg", w)
             parts.append("@ \(weightStr)")
         }
-        
+
         if let rest = restSeconds, rest > 0 {
             parts.append("(休\(rest)s)")
         }
-        
+
         return parts.joined(separator: " ")
     }
 }

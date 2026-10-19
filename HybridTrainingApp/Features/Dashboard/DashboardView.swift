@@ -15,6 +15,7 @@ public struct DashboardView: View {
     @State private var selectedTemplateForQuickLog: WorkoutRoutineTemplate? = nil
     @State private var isShowingAlternates: Bool = false
     @State private var isShowingAudit: Bool = false
+    @State private var isShowingSettings: Bool = false
     @State private var scheduleStatusMessage: String?
     
     private let healthKitAdapter: HealthKitAdapter
@@ -149,17 +150,30 @@ public struct DashboardView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingAudit = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "stethoscope")
-                            Text("探針與回放")
+                    HStack(spacing: 12) {
+                        Button {
+                            isShowingAudit = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "stethoscope")
+                                Text("探針")
+                            }
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(hex: "0A84FF"))
                         }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(hex: "58A6FF"))
+
+                        Button {
+                            isShowingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "8E8E93"))
+                        }
                     }
                 }
+            }
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsView(healthKitAdapter: healthKitAdapter)
             }
             .sheet(isPresented: $isShowingQuickLog) {
                 QuickLogSheet(initialTemplate: selectedTemplateForQuickLog) {
