@@ -7,6 +7,7 @@ public struct WeeklyScheduleView: View {
     @State private var plan: WeeklySchedulePlan = WeeklyScheduleEngine.schedule(for: .balanced)
     @State private var isSoftSuggestionDismissed: Bool = false
     @State private var isShowingRoutineLibrary: Bool = false
+    @State private var replacingDayIndex: Int? = nil
 
     public init() {}
 
@@ -71,7 +72,18 @@ public struct WeeklyScheduleView: View {
                 }
             }
             .sheet(isPresented: $isShowingRoutineLibrary) {
-                RoutineLibrarySheet()
+                RoutineLibrarySheet { selectedTemplate in
+                    if let targetIdx = replacingDayIndex {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            plan.items[targetIdx].title = selectedTemplate.name
+                            plan.items[targetIdx].category = .strength
+                            plan.items[targetIdx].discipline = .strength
+                            plan.items[targetIdx].tag = "自選"
+                            plan.items[targetIdx].hasWarning = false
+                        }
+                        replacingDayIndex = nil
+                    }
+                }
             }
         }
     }
@@ -107,6 +119,20 @@ public struct WeeklyScheduleView: View {
             Text(item.category.rawValue)
                 .font(.system(size: 12))
                 .foregroundColor(Color(hex: "8E8E93"))
+
+            // 替換排程按鈕
+            Button {
+                replacingDayIndex = index
+                isShowingRoutineLibrary = true
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "0A84FF"))
+                    .padding(6)
+                    .background(Color(hex: "2C2C2E"))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
