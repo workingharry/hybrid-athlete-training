@@ -1,21 +1,29 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 public struct CameraPickerView: UIViewControllerRepresentable {
     @Environment(\.dismiss) private var dismiss
+    public let sourceType: UIImagePickerController.SourceType
     public let onImageCaptured: (UIImage) -> Void
 
-    public init(onImageCaptured: @escaping (UIImage) -> Void) {
+    public init(
+        sourceType: UIImagePickerController.SourceType = .camera,
+        onImageCaptured: @escaping (UIImage) -> Void
+    ) {
+        self.sourceType = sourceType
         self.onImageCaptured = onImageCaptured
     }
 
     public func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        if UIImagePickerController.isSourceTypeAvailable(.camera) {
-            picker.sourceType = .camera
+        let resolvedSource: UIImagePickerController.SourceType
+        if sourceType == .camera && UIImagePickerController.isSourceTypeAvailable(.camera) {
+            resolvedSource = .camera
         } else {
-            picker.sourceType = .photoLibrary
+            resolvedSource = .photoLibrary
         }
+        picker.sourceType = resolvedSource
         picker.delegate = context.coordinator
         return picker
     }

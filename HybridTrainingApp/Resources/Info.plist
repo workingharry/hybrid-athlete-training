@@ -24,6 +24,10 @@
 	<string>本 App 需要讀取您的體能訓練、心率與睡眠數據，以評估生理準備度、肌群冷卻與累積負荷。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>本 App 需要權限以記錄您的訓練紀錄與運動負荷。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>本 App 需要使用相機拍攝餐點，以便透過 AI 視覺模型自動分析熱量與蛋白質等三大營養素。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>本 App 需要存取相簿以選取食物照片進行營養素分析與記錄。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

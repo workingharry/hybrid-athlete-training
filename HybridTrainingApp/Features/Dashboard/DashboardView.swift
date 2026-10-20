@@ -22,6 +22,8 @@ public struct DashboardView: View {
     
     // AI 食物視覺辨識狀態
     @State private var isShowingCameraPicker: Bool = false
+    @State private var cameraPickerSource: UIImagePickerController.SourceType = .camera
+    @State private var isShowingSourceDialog: Bool = false
     @State private var isAnalyzingFood: Bool = false
     @State private var capturedFoodImage: UIImage? = nil
     @State private var activeFoodRecognitionResult: FoodRecognitionResult? = nil
@@ -74,7 +76,7 @@ public struct DashboardView: View {
                                 isShowingNutritionDetail = true
                             },
                             onTriggerCamera: {
-                                isShowingCameraPicker = true
+                                isShowingSourceDialog = true
                             },
                             onQuickAddProtein: {
                                 nutritionModel = NutritionCapsuleViewModel(
@@ -260,12 +262,23 @@ public struct DashboardView: View {
             }
             .sheet(isPresented: $isShowingNutritionDetail) {
                 NutritionDetailSheet(model: $nutritionModel) {
-                    isShowingCameraPicker = true
+                    isShowingSourceDialog = true
                 }
                 .presentationDetents([.medium, .large])
             }
+            .confirmationDialog("記錄飲食方式", isPresented: $isShowingSourceDialog, titleVisibility: .visible) {
+                Button("拍攝餐點照片") {
+                    cameraPickerSource = .camera
+                    isShowingCameraPicker = true
+                }
+                Button("從相簿選擇照片") {
+                    cameraPickerSource = .photoLibrary
+                    isShowingCameraPicker = true
+                }
+                Button("取消", role: .cancel) {}
+            }
             .fullScreenCover(isPresented: $isShowingCameraPicker) {
-                CameraPickerView { captured in
+                CameraPickerView(sourceType: cameraPickerSource) { captured in
                     handleImageCaptured(captured)
                 }
                 .ignoresSafeArea()
