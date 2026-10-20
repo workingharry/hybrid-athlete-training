@@ -7,6 +7,7 @@ public struct NutritionCapsuleView: View {
     public let model: NutritionCapsuleViewModel
     public let phase: FuelingPhase
     public let onOpenDetail: () -> Void
+    public let onTriggerCamera: () -> Void
     public let onQuickAddProtein: () -> Void
     public let onQuickAddCarb: () -> Void
     public let onQuickAddWater: () -> Void
@@ -17,6 +18,7 @@ public struct NutritionCapsuleView: View {
         model: NutritionCapsuleViewModel,
         phase: FuelingPhase,
         onOpenDetail: @escaping () -> Void,
+        onTriggerCamera: @escaping () -> Void = {},
         onQuickAddProtein: @escaping () -> Void = {},
         onQuickAddCarb: @escaping () -> Void = {},
         onQuickAddWater: @escaping () -> Void = {}
@@ -24,6 +26,7 @@ public struct NutritionCapsuleView: View {
         self.model = model
         self.phase = phase
         self.onOpenDetail = onOpenDetail
+        self.onTriggerCamera = onTriggerCamera
         self.onQuickAddProtein = onQuickAddProtein
         self.onQuickAddCarb = onQuickAddCarb
         self.onQuickAddWater = onQuickAddWater
@@ -58,6 +61,17 @@ public struct NutritionCapsuleView: View {
                     }
                     
                     Spacer()
+                    
+                    // 相機 AI 辨識按鈕
+                    Button(action: onTriggerCamera) {
+                        Image(systemName: "camera.viewfinder")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color(hex: "58A6FF"))
+                            .frame(width: 26, height: 26)
+                            .background(Color(hex: "21262D"))
+                            .clipShape(Circle())
+                    }
+                    .highPriorityGesture(TapGesture().onEnded { onTriggerCamera() })
                     
                     // 1 秒極速加點 Menu
                     Menu {

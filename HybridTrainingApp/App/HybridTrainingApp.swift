@@ -8,6 +8,7 @@ struct HybridTrainingApp: App {
         let schema = Schema([
             SDWorkoutSession.self,
             SDRoutineTemplate.self,
+            SDDailyNutritionEntry.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

@@ -8,14 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		0BB2CAE280BE2DA17AC7D3C4 /* WeeklyScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B863C4FB279C45C551253C /* WeeklyScheduleView.swift */; };
+		1969451AEE14A93B1B7311A1 /* GeminiFoodVisionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A12EC69F80EDAA4122C11D /* GeminiFoodVisionAdapter.swift */; };
 		1F285C8551F483FCF0B84585 /* ResistanceLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC14CAF861E1E3A21C405CC /* ResistanceLibraryView.swift */; };
 		24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */; };
 		3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51439135618587B69BDBC11 /* HealthKitAdapter.swift */; };
 		4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */; };
 		529FA39767858E20178DD293 /* SessionEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C88F742006F5789FE1A82B /* SessionEditorSheet.swift */; };
+		583EDBECA01EC6F9E2584E6C /* FoodRecognitionReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96142E3A75BF34C12CF67C55 /* FoodRecognitionReviewSheet.swift */; };
 		588789431BC8A76AF84E88BF /* SpikeAuditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */; };
 		6069CD99BCBA962B8548A86B /* HybridTrainingStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 726B12F138FBD6B6FECD95C9 /* HybridTrainingStorage */; };
 		61A26B9FF4388156E10BE6DD /* AnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FAEB558BC3548B244F5976 /* AnalyticsView.swift */; };
+		63675E847C5BFF83FC3B1FE8 /* CameraPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B64C7A8C7E2C1C7E2EDCB3C8 /* CameraPickerView.swift */; };
 		71014F7446773DA3F309BF1F /* RoutineEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339AC1A9335ED8B572C05404 /* RoutineEditorSheet.swift */; };
 		76DB42ADE3D111FCC211FEC3 /* NutritionDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DCB01F0766323901EA403E /* NutritionDetailSheet.swift */; };
 		7E9BCCEEAC7188873F28C964 /* WorkoutSessionRunnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF63F01850DDCDBF94AABA4 /* WorkoutSessionRunnerView.swift */; };
@@ -55,10 +58,13 @@
 		80DAA0329FA7289E15A6A117 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuscleCooldownCardView.swift; sourceTree = "<group>"; };
 		94CA012825CD76147C4B39BF /* NutritionCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionCapsuleView.swift; sourceTree = "<group>"; };
+		96142E3A75BF34C12CF67C55 /* FoodRecognitionReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRecognitionReviewSheet.swift; sourceTree = "<group>"; };
 		9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9FF63F01850DDCDBF94AABA4 /* WorkoutSessionRunnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSessionRunnerView.swift; sourceTree = "<group>"; };
 		AC5BEA774668D011C0E353EA /* SpikeAuditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditViewModel.swift; sourceTree = "<group>"; };
+		B64C7A8C7E2C1C7E2EDCB3C8 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
 		BFF61DDFBF35203CD58BC367 /* SpikeAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAuditView.swift; sourceTree = "<group>"; };
+		C5A12EC69F80EDAA4122C11D /* GeminiFoodVisionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiFoodVisionAdapter.swift; sourceTree = "<group>"; };
 		CA61048D5429A75972A3CCE2 /* HybridTrainingApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HybridTrainingApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridTrainingApp.swift; sourceTree = "<group>"; };
 		D1FAEB558BC3548B244F5976 /* AnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsView.swift; sourceTree = "<group>"; };
@@ -101,6 +107,14 @@
 			path = Workout;
 			sourceTree = "<group>";
 		};
+		1F928E39DADF609B98D6A612 /* Vision */ = {
+			isa = PBXGroup;
+			children = (
+				C5A12EC69F80EDAA4122C11D /* GeminiFoodVisionAdapter.swift */,
+			);
+			path = Vision;
+			sourceTree = "<group>";
+		};
 		200578CFF0EB0EA98D456906 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
@@ -110,6 +124,15 @@
 				9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		20FB9E9B8195FBCA32631F96 /* Nutrition */ = {
+			isa = PBXGroup;
+			children = (
+				B64C7A8C7E2C1C7E2EDCB3C8 /* CameraPickerView.swift */,
+				96142E3A75BF34C12CF67C55 /* FoodRecognitionReviewSheet.swift */,
+			);
+			path = Nutrition;
 			sourceTree = "<group>";
 		};
 		4492C236BA76CB1546552474 /* Components */ = {
@@ -163,6 +186,7 @@
 			isa = PBXGroup;
 			children = (
 				E5FC65D0999D17354B74A573 /* HealthKit */,
+				1F928E39DADF609B98D6A612 /* Vision */,
 				D93DD0EC894EF77A89D433ED /* WorkoutKit */,
 			);
 			path = Infrastructure;
@@ -182,6 +206,7 @@
 				E8DDF87C81BA090734822328 /* Analytics */,
 				AD0CF326AC6AA93AECFBF5A4 /* Dashboard */,
 				49721665D07BA4D89A576811 /* Logbook */,
+				20FB9E9B8195FBCA32631F96 /* Nutrition */,
 				F72F8CDDF90267250D2AB989 /* QuickLog */,
 				492DA9444B23D9E07B3400EF /* Schedule */,
 				200578CFF0EB0EA98D456906 /* Settings */,
@@ -338,8 +363,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				61A26B9FF4388156E10BE6DD /* AnalyticsView.swift in Sources */,
+				63675E847C5BFF83FC3B1FE8 /* CameraPickerView.swift in Sources */,
 				FD82B5FB25FF142433B63AE9 /* DailyHeroCardView.swift in Sources */,
 				B370E26FDC22B7316EEB1B90 /* DashboardView.swift in Sources */,
+				583EDBECA01EC6F9E2584E6C /* FoodRecognitionReviewSheet.swift in Sources */,
+				1969451AEE14A93B1B7311A1 /* GeminiFoodVisionAdapter.swift in Sources */,
 				3FF4EA9E31DCC62F3BFF400E /* HealthKitAdapter.swift in Sources */,
 				24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */,
 				9FDFE80A53B58BB209E494A3 /* LogbookView.swift in Sources */,

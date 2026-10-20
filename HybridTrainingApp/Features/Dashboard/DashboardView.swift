@@ -7,6 +7,7 @@ import HybridTrainingStorage
 public struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SDWorkoutSession.startDate, order: .reverse) private var storedSessions: [SDWorkoutSession]
+    @Query(sort: \SDDailyNutritionEntry.timestamp, order: .reverse) private var storedNutritionEntries: [SDDailyNutritionEntry]
     
     @State private var decision: DailyDecision?
     @State private var weeklySummary: WeeklyHybridSummary?
@@ -18,6 +19,14 @@ public struct DashboardView: View {
     @State private var isShowingSettings: Bool = false
     @State private var scheduleStatusMessage: String?
     @State private var isShowingNutritionDetail: Bool = false
+    
+    // AI 食物視覺辨識狀態
+    @State private var isShowingCameraPicker: Bool = false
+    @State private var isAnalyzingFood: Bool = false
+    @State private var capturedFoodImage: UIImage? = nil
+    @State private var activeFoodRecognitionResult: FoodRecognitionResult? = nil
+    private let foodVisionAdapter = GeminiFoodVisionAdapter()
+    
     @State private var nutritionModel: NutritionCapsuleViewModel = NutritionCapsuleViewModel(
         consumedKcal: 0,
         targetKcal: 2650,
@@ -63,6 +72,9 @@ public struct DashboardView: View {
                             ),
                             onOpenDetail: {
                                 isShowingNutritionDetail = true
+                            },
+                            onTriggerCamera: {
+                                isShowingCameraPicker = true
                             },
                             onQuickAddProtein: {
                                 nutritionModel = NutritionCapsuleViewModel(
@@ -247,8 +259,48 @@ public struct DashboardView: View {
                 alternatesSheet
             }
             .sheet(isPresented: $isShowingNutritionDetail) {
-                NutritionDetailSheet(model: $nutritionModel)
-                    .presentationDetents([.medium, .large])
+                NutritionDetailSheet(model: $nutritionModel) {
+                    isShowingCameraPicker = true
+                }
+                .presentationDetents([.medium, .large])
+            }
+            .fullScreenCover(isPresented: $isShowingCameraPicker) {
+                CameraPickerView { captured in
+                    handleImageCaptured(captured)
+                }
+                .ignoresSafeArea()
+            }
+            .sheet(item: Binding(
+                get: { activeFoodRecognitionResult.map { IdentifiableRecognitionResult(result: $0) } },
+                set: { activeFoodRecognitionResult = $0?.result }
+            )) { identifiable in
+                FoodRecognitionReviewSheet(
+                    initialResult: identifiable.result,
+                    capturedImage: capturedFoodImage
+                ) { confirmedResult in
+                    commitNutritionResult(confirmedResult)
+                }
+            }
+            .overlay {
+                if isAnalyzingFood {
+                    ZStack {
+                        Color.black.opacity(0.65).ignoresSafeArea()
+                        VStack(spacing: 14) {
+                            ProgressView()
+                                .tint(Color(hex: "58A6FF"))
+                                .scaleEffect(1.4)
+                            Text("AI 正在分析餐點熱量與蛋白質...")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("請稍候，多模態視覺處理中")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "8B949E"))
+                        }
+                        .padding(24)
+                        .background(Color(hex: "161B22"))
+                        .cornerRadius(16)
+                    }
+                }
             }
             .task {
                 refreshDailyDecision()
@@ -375,10 +427,98 @@ public struct DashboardView: View {
         }
     }
     
+    private func handleImageCaptured(_ image: UIImage) {
+        self.capturedFoodImage = image
+        self.isAnalyzingFood = true
+        
+        Task {
+            // 壓縮至適合視覺 API 分析之 JPEG
+            let resized = image.resized(maxDimension: 1024)
+            let imageData = resized.jpegData(compressionQuality: 0.8) ?? Data()
+            
+            do {
+                let result = try await foodVisionAdapter.recognizeFood(imageData: imageData, mimeType: "image/jpeg")
+                await MainActor.run {
+                    self.isAnalyzingFood = false
+                    self.activeFoodRecognitionResult = result
+                }
+            } catch {
+                await MainActor.run {
+                    self.isAnalyzingFood = false
+                    // 容錯保底彈出
+                    self.activeFoodRecognitionResult = FoodRecognitionResult(
+                        items: [
+                            FoodItemPrediction(
+                                foodName: "運動員均衡餐點",
+                                estimatedPortion: "1標準份",
+                                calories: 450,
+                                proteinGrams: 35,
+                                carbsGrams: 45,
+                                fatGrams: 12,
+                                confidence: 0.7,
+                                reasoning: "離線保底估算"
+                            )
+                        ],
+                        athleteAdvice: "建議微調實際攝取量。"
+                    )
+                }
+            }
+        }
+    }
+    
+    private func commitNutritionResult(_ result: FoodRecognitionResult) {
+        // 1. 寫入 SwiftData
+        for item in result.items {
+            let entry = SDDailyNutritionEntry(
+                foodName: item.foodName,
+                calories: item.calories,
+                proteinGrams: item.proteinGrams,
+                carbsGrams: item.carbsGrams,
+                fatGrams: item.fatGrams,
+                mealTypeRaw: "ai_vision",
+                notes: item.reasoning
+            )
+            modelContext.insert(entry)
+        }
+        try? modelContext.save()
+        
+        // 2. 更新儀表板 UI ViewModel
+        nutritionModel = NutritionCapsuleViewModel(
+            consumedKcal: nutritionModel.consumedKcal + result.totalCalories,
+            targetKcal: nutritionModel.targetKcal,
+            proteinGrams: nutritionModel.proteinGrams + result.totalProteinGrams,
+            targetProteinGrams: nutritionModel.targetProteinGrams,
+            carbsGrams: nutritionModel.carbsGrams + result.totalCarbsGrams,
+            targetCarbsGrams: nutritionModel.targetCarbsGrams,
+            mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
+            dayType: nutritionModel.dayType,
+            goal: nutritionModel.goal
+        )
+    }
+
     private var currentDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM月dd日 EEEE"
         formatter.locale = Locale(identifier: "zh_Hant_TW")
         return formatter.string(from: Date())
+    }
+}
+
+// MARK: - 輔助 Identifiable 包裝
+struct IdentifiableRecognitionResult: Identifiable {
+    let id = UUID()
+    let result: FoodRecognitionResult
+}
+
+extension UIImage {
+    func resized(maxDimension: CGFloat) -> UIImage {
+        let currentMax = max(size.width, size.height)
+        guard currentMax > maxDimension else { return self }
+        let scale = maxDimension / currentMax
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }

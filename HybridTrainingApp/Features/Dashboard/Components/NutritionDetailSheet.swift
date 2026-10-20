@@ -6,9 +6,11 @@ import HybridTrainingCore
 public struct NutritionDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding public var model: NutritionCapsuleViewModel
+    public var onTriggerCamera: () -> Void = {}
     
-    public init(model: Binding<NutritionCapsuleViewModel>) {
+    public init(model: Binding<NutritionCapsuleViewModel>, onTriggerCamera: @escaping () -> Void = {}) {
         self._model = model
+        self.onTriggerCamera = onTriggerCamera
     }
     
     public var body: some View {
@@ -71,6 +73,48 @@ public struct NutritionDetailSheet: View {
                         .background(Color(hex: "161B22"))
                         .cornerRadius(12)
                         
+                        // 2.5 拍照 AI 飲食記錄入口
+                        Button(action: {
+                            dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                onTriggerCamera()
+                            }
+                        }) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: "58A6FF").opacity(0.15))
+                                        .frame(width: 40, height: 40)
+                                    Image(systemName: "camera.viewfinder")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(Color(hex: "58A6FF"))
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("拍攝餐點 AI 視覺分析")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                    Text("自動估算食物熱量、蛋白質與碳水，支援手動微調")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color(hex: "8B949E"))
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(Color(hex: "8B949E"))
+                            }
+                            .padding(14)
+                            .background(Color(hex: "161B22"))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(hex: "58A6FF").opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+
                         // 3. 快捷記錄
                         VStack(alignment: .leading, spacing: 10) {
                             Text("快速補登")
