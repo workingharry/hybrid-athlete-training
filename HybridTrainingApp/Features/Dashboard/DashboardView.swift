@@ -17,6 +17,18 @@ public struct DashboardView: View {
     @State private var isShowingAudit: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var scheduleStatusMessage: String?
+    @State private var isShowingNutritionDetail: Bool = false
+    @State private var nutritionModel: NutritionCapsuleViewModel = NutritionCapsuleViewModel(
+        consumedKcal: 0,
+        targetKcal: 2650,
+        proteinGrams: 0,
+        targetProteinGrams: 140,
+        carbsGrams: 0,
+        targetCarbsGrams: 280,
+        mealsLoggedCount: 0,
+        dayType: .heavyStrength,
+        goal: .maximizeHypertrophy
+    )
     
     private let healthKitAdapter: HealthKitAdapter
     private let workoutKitAdapter: WorkoutKitAdapter
@@ -41,6 +53,47 @@ public struct DashboardView: View {
                                 .tint(Color(hex: "58A6FF"))
                                 .padding(.vertical, 8)
                         }
+                        
+                        // 1.5 今日微型營養補給膠囊
+                        NutritionCapsuleView(
+                            model: nutritionModel,
+                            phase: FuelingPhaseResolver.resolve(
+                                dayType: nutritionModel.dayType,
+                                mealsLogged: nutritionModel.mealsLoggedCount
+                            ),
+                            onOpenDetail: {
+                                isShowingNutritionDetail = true
+                            },
+                            onQuickAddProtein: {
+                                nutritionModel = NutritionCapsuleViewModel(
+                                    consumedKcal: nutritionModel.consumedKcal + 130,
+                                    targetKcal: nutritionModel.targetKcal,
+                                    proteinGrams: nutritionModel.proteinGrams + 30,
+                                    targetProteinGrams: nutritionModel.targetProteinGrams,
+                                    carbsGrams: nutritionModel.carbsGrams + 2,
+                                    targetCarbsGrams: nutritionModel.targetCarbsGrams,
+                                    mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
+                                    dayType: nutritionModel.dayType,
+                                    goal: nutritionModel.goal
+                                )
+                            },
+                            onQuickAddCarb: {
+                                nutritionModel = NutritionCapsuleViewModel(
+                                    consumedKcal: nutritionModel.consumedKcal + 210,
+                                    targetKcal: nutritionModel.targetKcal,
+                                    proteinGrams: nutritionModel.proteinGrams + 3,
+                                    targetProteinGrams: nutritionModel.targetProteinGrams,
+                                    carbsGrams: nutritionModel.carbsGrams + 50,
+                                    targetCarbsGrams: nutritionModel.targetCarbsGrams,
+                                    mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
+                                    dayType: nutritionModel.dayType,
+                                    goal: nutritionModel.goal
+                                )
+                            },
+                            onQuickAddWater: {
+                                // 快速記錄水份
+                            }
+                        )
                         
                         // 2. 週週期雙軌平衡環 (耐力/肌力/模式三重環)
                         if let summary = weeklySummary {
@@ -192,6 +245,10 @@ public struct DashboardView: View {
             }
             .sheet(isPresented: $isShowingAlternates) {
                 alternatesSheet
+            }
+            .sheet(isPresented: $isShowingNutritionDetail) {
+                NutritionDetailSheet(model: $nutritionModel)
+                    .presentationDetents([.medium, .large])
             }
             .task {
                 refreshDailyDecision()
