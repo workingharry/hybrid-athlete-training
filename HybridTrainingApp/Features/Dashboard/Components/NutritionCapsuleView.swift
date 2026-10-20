@@ -8,6 +8,7 @@ public struct NutritionCapsuleView: View {
     public let phase: FuelingPhase
     public let onOpenDetail: () -> Void
     public let onTriggerCamera: () -> Void
+    public let onTriggerCustomEntry: () -> Void
     public let onQuickAddProtein: () -> Void
     public let onQuickAddCarb: () -> Void
     public let onQuickAddWater: () -> Void
@@ -19,6 +20,7 @@ public struct NutritionCapsuleView: View {
         phase: FuelingPhase,
         onOpenDetail: @escaping () -> Void,
         onTriggerCamera: @escaping () -> Void = {},
+        onTriggerCustomEntry: @escaping () -> Void = {},
         onQuickAddProtein: @escaping () -> Void = {},
         onQuickAddCarb: @escaping () -> Void = {},
         onQuickAddWater: @escaping () -> Void = {}
@@ -27,6 +29,7 @@ public struct NutritionCapsuleView: View {
         self.phase = phase
         self.onOpenDetail = onOpenDetail
         self.onTriggerCamera = onTriggerCamera
+        self.onTriggerCustomEntry = onTriggerCustomEntry
         self.onQuickAddProtein = onQuickAddProtein
         self.onQuickAddCarb = onQuickAddCarb
         self.onQuickAddWater = onQuickAddWater
@@ -97,6 +100,12 @@ public struct NutritionCapsuleView: View {
                         }
                         
                         Divider()
+                        
+                        Button {
+                            onTriggerCustomEntry()
+                        } label: {
+                            Label("自訂精細記錄 (熱量/蛋白質)...", systemImage: "square.and.pencil")
+                        }
                         
                         Button(action: onOpenDetail) {
                             Label("開啟完整飲食面板...", systemImage: "slider.horizontal.3")

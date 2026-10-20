@@ -20,13 +20,15 @@ public struct DashboardView: View {
     @State private var scheduleStatusMessage: String?
     @State private var isShowingNutritionDetail: Bool = false
     
-    // AI 食物視覺辨識狀態
+    // AI 食物視覺辨識與自訂精確輸入狀態
     @State private var isShowingCameraPicker: Bool = false
     @State private var cameraPickerSource: UIImagePickerController.SourceType = .camera
     @State private var isShowingSourceDialog: Bool = false
     @State private var isAnalyzingFood: Bool = false
     @State private var capturedFoodImage: UIImage? = nil
     @State private var activeFoodRecognitionResult: FoodRecognitionResult? = nil
+    @State private var isShowingPreciseEntrySheet: Bool = false
+    @State private var prefillPreciseEntryData: PreciseEntryPrefillData? = nil
     private let foodVisionAdapter = GeminiFoodVisionAdapter()
     
     @State private var nutritionModel: NutritionCapsuleViewModel = NutritionCapsuleViewModel(
@@ -77,6 +79,10 @@ public struct DashboardView: View {
                             },
                             onTriggerCamera: {
                                 isShowingSourceDialog = true
+                            },
+                            onTriggerCustomEntry: {
+                                prefillPreciseEntryData = nil
+                                isShowingPreciseEntrySheet = true
                             },
                             onQuickAddProtein: {
                                 nutritionModel = NutritionCapsuleViewModel(
@@ -261,9 +267,16 @@ public struct DashboardView: View {
                 alternatesSheet
             }
             .sheet(isPresented: $isShowingNutritionDetail) {
-                NutritionDetailSheet(model: $nutritionModel) {
-                    isShowingSourceDialog = true
-                }
+                NutritionDetailSheet(
+                    model: $nutritionModel,
+                    onTriggerCamera: {
+                        isShowingSourceDialog = true
+                    },
+                    onTriggerCustomEntry: {
+                        prefillPreciseEntryData = nil
+                        isShowingPreciseEntrySheet = true
+                    }
+                )
                 .presentationDetents([.medium, .large])
             }
             .confirmationDialog("記錄飲食方式", isPresented: $isShowingSourceDialog, titleVisibility: .visible) {
@@ -275,6 +288,10 @@ public struct DashboardView: View {
                     cameraPickerSource = .photoLibrary
                     isShowingCameraPicker = true
                 }
+                Button("手動精細輸入 (熱量/蛋白質)") {
+                    prefillPreciseEntryData = nil
+                    isShowingPreciseEntrySheet = true
+                }
                 Button("取消", role: .cancel) {}
             }
             .fullScreenCover(isPresented: $isShowingCameraPicker) {
@@ -282,6 +299,37 @@ public struct DashboardView: View {
                     handleImageCaptured(captured)
                 }
                 .ignoresSafeArea()
+            }
+            .sheet(isPresented: $isShowingPreciseEntrySheet) {
+                if let prefill = prefillPreciseEntryData {
+                    PreciseNutritionEntrySheet(
+                        initialFoodName: prefill.foodName,
+                        initialCalories: prefill.calories,
+                        initialProtein: prefill.protein,
+                        initialCarbs: prefill.carbs,
+                        initialFat: prefill.fat,
+                        initialPortion: prefill.portion,
+                        initialCategory: prefill.category,
+                        athleteNote: prefill.notes,
+                        photoImage: capturedFoodImage
+                    ) { item, category in
+                        commitSinglePreciseEntry(item, category: category)
+                    }
+                } else {
+                    PreciseNutritionEntrySheet(
+                        initialFoodName: "",
+                        initialCalories: 0,
+                        initialProtein: 0,
+                        initialCarbs: 0,
+                        initialFat: 0,
+                        initialPortion: "1份",
+                        initialCategory: .lunch,
+                        athleteNote: nil,
+                        photoImage: nil
+                    ) { item, category in
+                        commitSinglePreciseEntry(item, category: category)
+                    }
+                }
             }
             .sheet(item: Binding(
                 get: { activeFoodRecognitionResult.map { IdentifiableRecognitionResult(result: $0) } },
@@ -480,6 +528,22 @@ public struct DashboardView: View {
     }
     
     private func commitNutritionResult(_ result: FoodRecognitionResult) {
+        // 若為單一食物辨識結果，直接打開精細面板讓運動員審閱並可直接手動輸入
+        if let first = result.items.first {
+            self.prefillPreciseEntryData = PreciseEntryPrefillData(
+                foodName: first.foodName,
+                portion: first.estimatedPortion,
+                calories: first.calories,
+                protein: first.proteinGrams,
+                carbs: first.carbsGrams,
+                fat: first.fatGrams,
+                category: .lunch,
+                notes: result.athleteAdvice ?? first.reasoning
+            )
+            self.isShowingPreciseEntrySheet = true
+            return
+        }
+
         // 1. 寫入 SwiftData
         for item in result.items {
             let entry = SDDailyNutritionEntry(
@@ -509,12 +573,51 @@ public struct DashboardView: View {
         )
     }
 
+    private func commitSinglePreciseEntry(_ item: FoodItemPrediction, category: MealCategory) {
+        let entry = SDDailyNutritionEntry(
+            foodName: item.foodName,
+            calories: item.calories,
+            proteinGrams: item.proteinGrams,
+            carbsGrams: item.carbsGrams,
+            fatGrams: item.fatGrams,
+            mealTypeRaw: category.rawValue,
+            notes: item.reasoning
+        )
+        modelContext.insert(entry)
+        try? modelContext.save()
+
+        nutritionModel = NutritionCapsuleViewModel(
+            consumedKcal: nutritionModel.consumedKcal + item.calories,
+            targetKcal: nutritionModel.targetKcal,
+            proteinGrams: nutritionModel.proteinGrams + item.proteinGrams,
+            targetProteinGrams: nutritionModel.targetProteinGrams,
+            carbsGrams: nutritionModel.carbsGrams + item.carbsGrams,
+            targetCarbsGrams: nutritionModel.targetCarbsGrams,
+            mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
+            dayType: nutritionModel.dayType,
+            goal: nutritionModel.goal
+        )
+    }
+
     private var currentDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM月dd日 EEEE"
         formatter.locale = Locale(identifier: "zh_Hant_TW")
         return formatter.string(from: Date())
     }
+}
+
+// MARK: - 輔助預填資料模型
+struct PreciseEntryPrefillData: Identifiable {
+    let id = UUID()
+    let foodName: String
+    let portion: String
+    let calories: Double
+    let protein: Double
+    let carbs: Double
+    let fat: Double
+    let category: MealCategory
+    let notes: String
 }
 
 // MARK: - 輔助 Identifiable 包裝

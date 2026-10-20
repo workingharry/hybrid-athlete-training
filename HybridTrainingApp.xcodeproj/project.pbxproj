@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07B586626F310701147CB061 /* PreciseNutritionEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECBD798AF63A9C4827F74D0 /* PreciseNutritionEntrySheet.swift */; };
 		0BB2CAE280BE2DA17AC7D3C4 /* WeeklyScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B863C4FB279C45C551253C /* WeeklyScheduleView.swift */; };
 		1969451AEE14A93B1B7311A1 /* GeminiFoodVisionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A12EC69F80EDAA4122C11D /* GeminiFoodVisionAdapter.swift */; };
 		1F285C8551F483FCF0B84585 /* ResistanceLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC14CAF861E1E3A21C405CC /* ResistanceLibraryView.swift */; };
@@ -57,6 +58,7 @@
 		7DC12A9AD49EBD83BC153199 /* WeeklyRingsCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRingsCardView.swift; sourceTree = "<group>"; };
 		80DAA0329FA7289E15A6A117 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		8455CDE74C4CC51E60B31AAC /* MuscleCooldownCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuscleCooldownCardView.swift; sourceTree = "<group>"; };
+		8ECBD798AF63A9C4827F74D0 /* PreciseNutritionEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreciseNutritionEntrySheet.swift; sourceTree = "<group>"; };
 		94CA012825CD76147C4B39BF /* NutritionCapsuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionCapsuleView.swift; sourceTree = "<group>"; };
 		96142E3A75BF34C12CF67C55 /* FoodRecognitionReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodRecognitionReviewSheet.swift; sourceTree = "<group>"; };
 		9AE88C4CEC2B14701A7377D0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 			children = (
 				B64C7A8C7E2C1C7E2EDCB3C8 /* CameraPickerView.swift */,
 				96142E3A75BF34C12CF67C55 /* FoodRecognitionReviewSheet.swift */,
+				8ECBD798AF63A9C4827F74D0 /* PreciseNutritionEntrySheet.swift */,
 			);
 			path = Nutrition;
 			sourceTree = "<group>";
@@ -375,6 +378,7 @@
 				96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */,
 				E4FAEFC43CCAFC1D3E9B7E99 /* NutritionCapsuleView.swift in Sources */,
 				76DB42ADE3D111FCC211FEC3 /* NutritionDetailSheet.swift in Sources */,
+				07B586626F310701147CB061 /* PreciseNutritionEntrySheet.swift in Sources */,
 				4E09084C22B49783E24FD73B /* QuickLogSheet.swift in Sources */,
 				1F285C8551F483FCF0B84585 /* ResistanceLibraryView.swift in Sources */,
 				71014F7446773DA3F309BF1F /* RoutineEditorSheet.swift in Sources */,

@@ -7,10 +7,16 @@ public struct NutritionDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding public var model: NutritionCapsuleViewModel
     public var onTriggerCamera: () -> Void = {}
+    public var onTriggerCustomEntry: () -> Void = {}
     
-    public init(model: Binding<NutritionCapsuleViewModel>, onTriggerCamera: @escaping () -> Void = {}) {
+    public init(
+        model: Binding<NutritionCapsuleViewModel>,
+        onTriggerCamera: @escaping () -> Void = {},
+        onTriggerCustomEntry: @escaping () -> Void = {}
+    ) {
         self._model = model
         self.onTriggerCamera = onTriggerCamera
+        self.onTriggerCustomEntry = onTriggerCustomEntry
     }
     
     public var body: some View {
@@ -150,6 +156,31 @@ public struct NutritionDetailSheet: View {
                                     )
                                 }
                             }
+                            
+                            // 3.5 自訂精確多營養素記錄按鈕
+                            Button(action: {
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onTriggerCustomEntry()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "square.and.pencil")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color(hex: "58A6FF"))
+                                    Text("自訂精細飲食記錄 (手動輸入熱量與蛋白質)")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color(hex: "8B949E"))
+                                }
+                                .padding(12)
+                                .background(Color(hex: "21262D"))
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(16)
