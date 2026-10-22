@@ -43,7 +43,7 @@ public struct QuickLogDraft: Equatable, Sendable {
     public var sRPE: Double
     public var timeOffset: QuickLogTimeOffset
 
-    public static let minDurationMinutes: Double = 15.0
+    public static let minDurationMinutes: Double = 5.0
     public static let maxDurationMinutes: Double = 180.0
     public static let minSRPE: Double = 1.0
     public static let maxSRPE: Double = 10.0

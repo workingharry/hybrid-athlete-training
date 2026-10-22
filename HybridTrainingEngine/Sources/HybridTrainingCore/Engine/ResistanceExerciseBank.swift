@@ -187,6 +187,30 @@ public struct ResistanceExerciseBank {
             defaultRestSeconds: 45,
             defaultRepRange: "3 組 x 12-20 次"
         ),
+        ResistanceExercise(
+            name: "農夫靜態持重 (Farmer Hold)",
+            englishName: "Farmer Hold",
+            pattern: .lowerPosterior,
+            equipment: .dumbbell,
+            primaryMuscles: ["前臂握力", "斜方肌", "核心肌群", "臀中肌"],
+            techniqueCues: "雙手持大重量啞鈴或壺鈴，沉肩收胛，挺胸直立等長緊繃保持 30-60 秒。",
+            defaultSets: 3,
+            defaultReps: 1,
+            defaultRestSeconds: 90,
+            defaultRepRange: "3-4 組 x 30-60 秒"
+        ),
+        ResistanceExercise(
+            name: "負重農夫行走 (Farmer Walk)",
+            englishName: "Farmer Walk",
+            pattern: .lowerPosterior,
+            equipment: .dumbbell,
+            primaryMuscles: ["前臂握力", "斜方肌", "核心抗側屈", "臀大肌"],
+            techniqueCues: "保持軀幹鉛直不晃動，小步穩健邁進，核心對抗晃動。",
+            defaultSets: 4,
+            defaultReps: 1,
+            defaultRestSeconds: 90,
+            defaultRepRange: "3-4 組 x 40-50 米"
+        ),
 
         // MARK: - 上半身推 (Upper Push & Shoulder External Rotation)
         ResistanceExercise(
@@ -418,6 +442,30 @@ public struct ResistanceExerciseBank {
             defaultReps: 10,
             defaultRestSeconds: 60,
             defaultRepRange: "3 組 x 8-12 次"
+        ),
+        ResistanceExercise(
+            name: "啞鈴二頭彎舉",
+            englishName: "Dumbbell Bicep Curl",
+            pattern: .upperPull,
+            equipment: .dumbbell,
+            primaryMuscles: ["二頭肌", "肱肌", "前臂肌群"],
+            techniqueCues: "手肘固定於身側，大拇指微向外旋頂峰收縮，下放時離心慢速控制。",
+            defaultSets: 3,
+            defaultReps: 12,
+            defaultRestSeconds: 60,
+            defaultRepRange: "3-4 組 x 10-15 次"
+        ),
+        ResistanceExercise(
+            name: "槓鈴二頭彎舉",
+            englishName: "Barbell Bicep Curl",
+            pattern: .upperPull,
+            equipment: .barbell,
+            primaryMuscles: ["二頭肌", "前臂屈肌"],
+            techniqueCues: "反握曲槓或直槓，軀幹直立避免借力代償，手腕維持中立。",
+            defaultSets: 3,
+            defaultReps: 10,
+            defaultRestSeconds: 60,
+            defaultRepRange: "3-4 組 x 8-12 次"
         )
     ]
     

@@ -54,4 +54,39 @@ final class ResistanceExerciseBankTests: XCTestCase {
         XCTAssertEqual(session.executedExercises.first?.exerciseName, "槓鈴後深蹲")
         XCTAssertEqual(session.loadAU, 480.0)
     }
+
+    func test_exerciseBank_containsBicepCurlAndFarmerCarries() {
+        let bicepCurlDumbbell = ResistanceExerciseBank.allExercises.first { $0.name == "啞鈴二頭彎舉" }
+        XCTAssertNotNil(bicepCurlDumbbell, "動作庫應包含啞鈴二頭彎舉")
+        XCTAssertEqual(bicepCurlDumbbell?.pattern, .upperPull)
+        XCTAssertEqual(bicepCurlDumbbell?.equipment, .dumbbell)
+
+        let bicepCurlBarbell = ResistanceExerciseBank.allExercises.first { $0.name == "槓鈴二頭彎舉" }
+        XCTAssertNotNil(bicepCurlBarbell, "動作庫應包含槓鈴二頭彎舉")
+        XCTAssertEqual(bicepCurlBarbell?.pattern, .upperPull)
+        XCTAssertEqual(bicepCurlBarbell?.equipment, .barbell)
+
+        let farmerHold = ResistanceExerciseBank.allExercises.first { $0.name == "農夫靜態持重 (Farmer Hold)" }
+        XCTAssertNotNil(farmerHold, "動作庫應包含農夫靜態持重")
+        XCTAssertEqual(farmerHold?.pattern, .lowerPosterior)
+        XCTAssertEqual(farmerHold?.equipment, .dumbbell)
+
+        let farmerWalk = ResistanceExerciseBank.allExercises.first { $0.name == "負重農夫行走 (Farmer Walk)" }
+        XCTAssertNotNil(farmerWalk, "動作庫應包含負重農夫行走")
+        XCTAssertEqual(farmerWalk?.pattern, .lowerPosterior)
+        XCTAssertEqual(farmerWalk?.equipment, .dumbbell)
+    }
+
+    func test_quickLogDraft_minimumDurationIsFiveMinutes() {
+        XCTAssertEqual(QuickLogDraft.minDurationMinutes, 5.0)
+
+        var draft = QuickLogDraft(durationMinutes: 3.0)
+        XCTAssertEqual(draft.durationMinutes, 5.0, "低於 5 分鐘應被自動夾止在 5 分鐘")
+
+        draft.adjustDuration(by: -10.0)
+        XCTAssertEqual(draft.durationMinutes, 5.0, "向下調節不得低於 5 分鐘")
+
+        draft.durationMinutes = 5.0
+        XCTAssertEqual(draft.durationMinutes, 5.0)
+    }
 }
