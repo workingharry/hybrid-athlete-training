@@ -19,10 +19,16 @@ struct HybridTrainingApp: App {
         }
     }()
 
+    @AppStorage("app_theme_mode") private var themeModeRaw: String = AppThemeMode.system.rawValue
+
+    private var currentColorScheme: ColorScheme? {
+        AppThemeMode(rawValue: themeModeRaw)?.colorScheme
+    }
+
     var body: some Scene {
         WindowGroup {
             MainTabView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(currentColorScheme)
         }
         .modelContainer(sharedModelContainer)
     }

@@ -29,8 +29,9 @@ public enum ReadinessGrade: String, Codable, Sendable {
 
 /// 數據信心水準標記
 public enum MetricConfidence: String, Codable, Sendable {
-    case high  // 高信心度：HRV 與睡眠樣本充足
-    case low   // 低信心度：缺乏 HRV，由睡眠或自覺活力降級推算
+    case high    // 高信心度：HRV 與睡眠樣本充足
+    case medium  // 中等信心度：部分指標估算或基準校準中
+    case low     // 低信心度：缺乏 HRV，由睡眠或自覺活力降級推算
 }
 
 /// 單次訓練來源追蹤 (Provenance Tracking)

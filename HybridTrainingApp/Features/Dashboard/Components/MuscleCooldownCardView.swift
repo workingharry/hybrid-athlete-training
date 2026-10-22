@@ -14,10 +14,10 @@ public struct MuscleCooldownCardView: View {
             HStack {
                 Text("動作模式冷卻時鐘 (4大肌群)")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(HybridTheme.textPrimary)
                 Spacer()
                 Image(systemName: "clock.arrow.circlepath")
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .foregroundColor(HybridTheme.textSecondary)
             }
             
             VStack(spacing: 8) {
@@ -28,11 +28,11 @@ public struct MuscleCooldownCardView: View {
             }
         }
         .padding(16)
-        .background(Color(hex: "161B22"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
     
@@ -44,23 +44,23 @@ public struct MuscleCooldownCardView: View {
         return HStack {
             Text(name)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Color(hex: "C9D1D9"))
+                .foregroundColor(HybridTheme.textPrimary)
             Spacer()
             if isFatigued {
                 Text("剩餘 \(String(format: "%.1f", hours)) 小時")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "E3B341"))
+                    .foregroundColor(HybridTheme.warningYellow)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(hex: "E3B341").opacity(0.15))
+                    .background(HybridTheme.warningYellow.opacity(0.15))
                     .cornerRadius(4)
             } else {
                 Text("已就緒 (Fresh)")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "3FB950"))
+                    .foregroundColor(HybridTheme.successGreen)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(hex: "3FB950").opacity(0.15))
+                    .background(HybridTheme.successGreen.opacity(0.15))
                     .cornerRadius(4)
             }
         }

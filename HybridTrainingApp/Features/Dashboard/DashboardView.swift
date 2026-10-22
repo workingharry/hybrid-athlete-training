@@ -29,19 +29,66 @@ public struct DashboardView: View {
     @State private var activeFoodRecognitionResult: FoodRecognitionResult? = nil
     @State private var isShowingPreciseEntrySheet: Bool = false
     @State private var prefillPreciseEntryData: PreciseEntryPrefillData? = nil
+    @State private var editingNutritionEntry: SDDailyNutritionEntry? = nil
     private let foodVisionAdapter = GeminiFoodVisionAdapter()
     
-    @State private var nutritionModel: NutritionCapsuleViewModel = NutritionCapsuleViewModel(
-        consumedKcal: 0,
-        targetKcal: 2650,
-        proteinGrams: 0,
-        targetProteinGrams: 140,
-        carbsGrams: 0,
-        targetCarbsGrams: 280,
-        mealsLoggedCount: 0,
-        dayType: .heavyStrength,
-        goal: .maximizeHypertrophy
-    )
+    private var todayNutritionEntries: [SDDailyNutritionEntry] {
+        let calendar = Calendar.current
+        let todayKey = TrainingDayKey(date: Date(), calendar: calendar).dateString
+        return storedNutritionEntries.filter {
+            TrainingDayKey(date: $0.timestamp, calendar: calendar).dateString == todayKey
+        }
+    }
+
+    private var currentDayType: TrainingDayType {
+        guard let recommendation = decision?.primaryRecommendation else {
+            return .heavyStrength
+        }
+        switch recommendation.discipline {
+        case .running:
+            if recommendation.estimatedDurationMinutes >= 60 || recommendation.runningType == .longRun {
+                return .longRun
+            } else {
+                return .easyRunZone2
+            }
+        case .strength:
+            return .heavyStrength
+        case .cycling, .swimming, .rowing:
+            return .twoADaySession
+        case .mobility, .rest:
+            return .activeRest
+        }
+    }
+
+    private var activeMacroTarget: MacroTarget {
+        HybridNutritionEngine.calculateDailyTarget(
+            bmr: 1650.0,
+            weightKg: 70.0,
+            fatFreeMassKg: 60.0,
+            dayType: currentDayType,
+            goal: .maximizeHypertrophy
+        )
+    }
+
+    private var currentNutritionViewModel: NutritionCapsuleViewModel {
+        let entries = todayNutritionEntries
+        let totalKcal = entries.reduce(0.0) { $0 + $1.calories }
+        let totalProtein = entries.reduce(0.0) { $0 + $1.proteinGrams }
+        let totalCarbs = entries.reduce(0.0) { $0 + $1.carbsGrams }
+        let target = activeMacroTarget
+
+        return NutritionCapsuleViewModel(
+            consumedKcal: totalKcal,
+            targetKcal: target.calories,
+            proteinGrams: totalProtein,
+            targetProteinGrams: target.proteinGrams,
+            carbsGrams: totalCarbs,
+            targetCarbsGrams: target.carbsGrams,
+            mealsLoggedCount: entries.count,
+            dayType: currentDayType,
+            goal: .maximizeHypertrophy
+        )
+    }
     
     private let healthKitAdapter: HealthKitAdapter
     private let workoutKitAdapter: WorkoutKitAdapter
@@ -54,7 +101,7 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -63,16 +110,16 @@ public struct DashboardView: View {
                             StatusCapsuleView(decision: decision)
                         } else {
                             ProgressView()
-                                .tint(Color(hex: "58A6FF"))
+                                .tint(HybridTheme.accentBlue)
                                 .padding(.vertical, 8)
                         }
                         
                         // 1.5 今日微型營養補給膠囊
                         NutritionCapsuleView(
-                            model: nutritionModel,
+                            model: currentNutritionViewModel,
                             phase: FuelingPhaseResolver.resolve(
-                                dayType: nutritionModel.dayType,
-                                mealsLogged: nutritionModel.mealsLoggedCount
+                                dayType: currentDayType,
+                                mealsLogged: todayNutritionEntries.count
                             ),
                             onOpenDetail: {
                                 isShowingNutritionDetail = true
@@ -85,33 +132,34 @@ public struct DashboardView: View {
                                 isShowingPreciseEntrySheet = true
                             },
                             onQuickAddProtein: {
-                                nutritionModel = NutritionCapsuleViewModel(
-                                    consumedKcal: nutritionModel.consumedKcal + 130,
-                                    targetKcal: nutritionModel.targetKcal,
-                                    proteinGrams: nutritionModel.proteinGrams + 30,
-                                    targetProteinGrams: nutritionModel.targetProteinGrams,
-                                    carbsGrams: nutritionModel.carbsGrams + 2,
-                                    targetCarbsGrams: nutritionModel.targetCarbsGrams,
-                                    mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
-                                    dayType: nutritionModel.dayType,
-                                    goal: nutritionModel.goal
+                                addQuickNutritionEntry(
+                                    name: "快捷補充高蛋白 (乳清/雞胸)",
+                                    kcal: 130,
+                                    protein: 30,
+                                    carbs: 2,
+                                    fat: 1,
+                                    category: "訓練加餐"
                                 )
                             },
                             onQuickAddCarb: {
-                                nutritionModel = NutritionCapsuleViewModel(
-                                    consumedKcal: nutritionModel.consumedKcal + 210,
-                                    targetKcal: nutritionModel.targetKcal,
-                                    proteinGrams: nutritionModel.proteinGrams + 3,
-                                    targetProteinGrams: nutritionModel.targetProteinGrams,
-                                    carbsGrams: nutritionModel.carbsGrams + 50,
-                                    targetCarbsGrams: nutritionModel.targetCarbsGrams,
-                                    mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
-                                    dayType: nutritionModel.dayType,
-                                    goal: nutritionModel.goal
+                                addQuickNutritionEntry(
+                                    name: "快捷補充碳水 (香蕉/能量棒)",
+                                    kcal: 210,
+                                    protein: 3,
+                                    carbs: 50,
+                                    fat: 1,
+                                    category: "訓練加餐"
                                 )
                             },
                             onQuickAddWater: {
-                                // 快速記錄水份
+                                addQuickNutritionEntry(
+                                    name: "運動補水 500ml",
+                                    kcal: 0,
+                                    protein: 0,
+                                    carbs: 0,
+                                    fat: 0,
+                                    category: "水份補給"
+                                )
                             }
                         )
                         
@@ -175,12 +223,12 @@ public struct DashboardView: View {
                             .font(.system(size: 14, weight: .bold))
                             .padding(.vertical, 14)
                             .padding(.horizontal, 16)
-                            .background(Color(hex: "161B22"))
-                            .foregroundColor(Color(hex: "58A6FF"))
+                            .background(HybridTheme.cardBackground)
+                            .foregroundColor(HybridTheme.accentBlue)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(hex: "30363D"), lineWidth: 1)
+                                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
                             )
                         }
 
@@ -195,17 +243,17 @@ public struct DashboardView: View {
                             .font(.system(size: 15, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(Color(hex: "3FB950"))
-                            .foregroundColor(Color(hex: "090C10"))
+                            .background(HybridTheme.successGreen)
+                            .foregroundColor(Color.white)
                             .cornerRadius(12)
-                            .shadow(color: Color(hex: "3FB950").opacity(0.3), radius: 10, y: 4)
+                            .shadow(color: HybridTheme.successGreen.opacity(0.3), radius: 10, y: 4)
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                     .background(
                         LinearGradient(
-                            colors: [Color(hex: "090C10").opacity(0.0), Color(hex: "090C10").opacity(0.95)],
+                            colors: [HybridTheme.background.opacity(0.0), HybridTheme.background.opacity(0.95)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -268,12 +316,28 @@ public struct DashboardView: View {
             }
             .sheet(isPresented: $isShowingNutritionDetail) {
                 NutritionDetailSheet(
-                    model: $nutritionModel,
+                    model: currentNutritionViewModel,
                     onTriggerCamera: {
                         isShowingSourceDialog = true
                     },
                     onTriggerCustomEntry: {
+                        editingNutritionEntry = nil
                         prefillPreciseEntryData = nil
+                        isShowingPreciseEntrySheet = true
+                    },
+                    onTriggerEditEntry: { entry in
+                        editingNutritionEntry = entry
+                        let cat = MealCategory(rawValue: entry.mealTypeRaw) ?? .lunch
+                        prefillPreciseEntryData = PreciseEntryPrefillData(
+                            foodName: entry.foodName,
+                            portion: "1份",
+                            calories: entry.calories,
+                            protein: entry.proteinGrams,
+                            carbs: entry.carbsGrams,
+                            fat: entry.fatGrams,
+                            category: cat,
+                            notes: entry.notes
+                        )
                         isShowingPreciseEntrySheet = true
                     }
                 )
@@ -558,45 +622,52 @@ public struct DashboardView: View {
             modelContext.insert(entry)
         }
         try? modelContext.save()
-        
-        // 2. 更新儀表板 UI ViewModel
-        nutritionModel = NutritionCapsuleViewModel(
-            consumedKcal: nutritionModel.consumedKcal + result.totalCalories,
-            targetKcal: nutritionModel.targetKcal,
-            proteinGrams: nutritionModel.proteinGrams + result.totalProteinGrams,
-            targetProteinGrams: nutritionModel.targetProteinGrams,
-            carbsGrams: nutritionModel.carbsGrams + result.totalCarbsGrams,
-            targetCarbsGrams: nutritionModel.targetCarbsGrams,
-            mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
-            dayType: nutritionModel.dayType,
-            goal: nutritionModel.goal
-        )
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
     }
 
     private func commitSinglePreciseEntry(_ item: FoodItemPrediction, category: MealCategory) {
+        if let existing = editingNutritionEntry {
+            existing.foodName = item.foodName
+            existing.calories = item.calories
+            existing.proteinGrams = item.proteinGrams
+            existing.carbsGrams = item.carbsGrams
+            existing.fatGrams = item.fatGrams
+            existing.mealTypeRaw = category.rawValue
+            existing.notes = item.reasoning
+            try? modelContext.save()
+            editingNutritionEntry = nil
+        } else {
+            let entry = SDDailyNutritionEntry(
+                foodName: item.foodName,
+                calories: item.calories,
+                proteinGrams: item.proteinGrams,
+                carbsGrams: item.carbsGrams,
+                fatGrams: item.fatGrams,
+                mealTypeRaw: category.rawValue,
+                notes: item.reasoning
+            )
+            modelContext.insert(entry)
+            try? modelContext.save()
+        }
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+    }
+
+    private func addQuickNutritionEntry(name: String, kcal: Double, protein: Double, carbs: Double, fat: Double, category: String) {
         let entry = SDDailyNutritionEntry(
-            foodName: item.foodName,
-            calories: item.calories,
-            proteinGrams: item.proteinGrams,
-            carbsGrams: item.carbsGrams,
-            fatGrams: item.fatGrams,
-            mealTypeRaw: category.rawValue,
-            notes: item.reasoning
+            foodName: name,
+            calories: kcal,
+            proteinGrams: protein,
+            carbsGrams: carbs,
+            fatGrams: fat,
+            mealTypeRaw: category,
+            notes: "快捷記錄"
         )
         modelContext.insert(entry)
         try? modelContext.save()
-
-        nutritionModel = NutritionCapsuleViewModel(
-            consumedKcal: nutritionModel.consumedKcal + item.calories,
-            targetKcal: nutritionModel.targetKcal,
-            proteinGrams: nutritionModel.proteinGrams + item.proteinGrams,
-            targetProteinGrams: nutritionModel.targetProteinGrams,
-            carbsGrams: nutritionModel.carbsGrams + item.carbsGrams,
-            targetCarbsGrams: nutritionModel.targetCarbsGrams,
-            mealsLoggedCount: nutritionModel.mealsLoggedCount + 1,
-            dayType: nutritionModel.dayType,
-            goal: nutritionModel.goal
-        )
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
     }
 
     private var currentDateString: String {

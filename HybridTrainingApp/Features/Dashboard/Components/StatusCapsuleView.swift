@@ -18,11 +18,11 @@ public struct StatusCapsuleView: View {
                     .frame(width: 8, height: 8)
                 Text(readinessText)
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(HybridTheme.textPrimary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color(hex: "161B22"))
+            .background(HybridTheme.cardBackground)
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
@@ -36,15 +36,15 @@ public struct StatusCapsuleView: View {
                     .frame(width: 8, height: 8)
                 Text("7天 ACWR: \(String(format: "%.2f", decision.acwrRatio))")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "C9D1D9"))
+                    .foregroundColor(HybridTheme.textPrimary)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color(hex: "161B22"))
+            .background(HybridTheme.cardBackground)
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color(hex: "30363D"), lineWidth: 1)
+                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
             )
             
             Spacer()
@@ -53,9 +53,9 @@ public struct StatusCapsuleView: View {
     
     private var readinessColor: Color {
         switch decision.readinessGrade {
-        case .ready: return Color(hex: "3FB950")
-        case .moderate: return Color(hex: "E3B341")
-        case .fatigued, .injured: return Color(hex: "F85149")
+        case .ready: return HybridTheme.successGreen
+        case .moderate: return HybridTheme.warningYellow
+        case .fatigued, .injured: return HybridTheme.dangerRed
         }
     }
     
@@ -70,13 +70,13 @@ public struct StatusCapsuleView: View {
     
     private var acwrColor: Color {
         if decision.acwrRatio < 0.8 {
-            return Color(hex: "8B949E")
+            return HybridTheme.textSecondary
         } else if decision.acwrRatio <= 1.3 {
-            return Color(hex: "3FB950")
+            return HybridTheme.successGreen
         } else if decision.acwrRatio <= 1.5 {
-            return Color(hex: "E3B341")
+            return HybridTheme.warningYellow
         } else {
-            return Color(hex: "F85149")
+            return HybridTheme.dangerRed
         }
     }
 }

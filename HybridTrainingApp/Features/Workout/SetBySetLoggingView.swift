@@ -125,6 +125,11 @@ public struct SetBySetLoggingView: View {
             .task {
                 loadPrefillData()
             }
+            .onDisappear {
+                timerSubscription?.invalidate()
+                timerSubscription = nil
+                isRestTimerRunning = false
+            }
         }
     }
 
@@ -448,7 +453,33 @@ public struct SetBySetLoggingView: View {
             setsList: sets
         )
 
-        onCompleteExercise?(detail)
+        if let onComplete = onCompleteExercise {
+            onComplete(detail)
+        } else {
+            // 獨立單項動作打卡：若未透過訓練流程開啟，直接建立完整會話持久化至 SwiftData
+            let completedSets = sets.filter { $0.isCompleted }
+            let validSets = completedSets.isEmpty ? sets : completedSets
+            let estDuration = Double(validSets.count * (exercise.defaultRestSeconds + 45)) / 60.0
+            let durationMin = max(10.0, estDuration)
+            let rirList = validSets.compactMap { $0.rir }
+            let avgRir = rirList.isEmpty ? 2.0 : (Double(rirList.reduce(0, +)) / Double(rirList.count))
+            let estSRPE = max(1.0, min(10.0, 10.0 - avgRir))
+            
+            let now = Date()
+            let session = WorkoutSession(
+                startDate: now.addingTimeInterval(-durationMin * 60.0),
+                endDate: now,
+                discipline: .strength,
+                durationMinutes: durationMin,
+                sRPE: estSRPE,
+                movementPatterns: [exercise.pattern],
+                executedExercises: [detail],
+                source: .manualLog
+            )
+            let sdSession = SDWorkoutSession(domain: session)
+            modelContext.insert(sdSession)
+            try? modelContext.save()
+        }
         dismiss()
     }
 }

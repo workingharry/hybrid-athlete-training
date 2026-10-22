@@ -58,6 +58,12 @@ public struct PhysiologicalSnapshot: Codable, Equatable, Sendable {
     public let sleepDurationHours: Double        // 昨夜去重總睡眠時數
     public let hasReportedPainOrInjury: Bool     // 傷病安全閘門
     public let morningSorenessRating: Double?    // 晨間整體 DOMS 痠痛評分 (1~5)
+    public let deepSleepHours: Double?
+    public let remSleepHours: Double?
+    public let nocturnalSleepingHeartRateBpm: Double?
+    public let restingHeartRateBpm: Double?
+    public let sleepingRespiratoryRateRpm: Double?
+    public let biomarkerAssessment: ReadinessAssessment?
     
     public init(
         date: Date = Date(),
@@ -66,7 +72,13 @@ public struct PhysiologicalSnapshot: Codable, Equatable, Sendable {
         hrv14dMADMs: Double? = nil,
         sleepDurationHours: Double,
         hasReportedPainOrInjury: Bool = false,
-        morningSorenessRating: Double? = nil
+        morningSorenessRating: Double? = nil,
+        deepSleepHours: Double? = nil,
+        remSleepHours: Double? = nil,
+        nocturnalSleepingHeartRateBpm: Double? = nil,
+        restingHeartRateBpm: Double? = nil,
+        sleepingRespiratoryRateRpm: Double? = nil,
+        biomarkerAssessment: ReadinessAssessment? = nil
     ) {
         self.date = date
         self.hrvTodayMs = hrvTodayMs
@@ -75,6 +87,12 @@ public struct PhysiologicalSnapshot: Codable, Equatable, Sendable {
         self.sleepDurationHours = sleepDurationHours
         self.hasReportedPainOrInjury = hasReportedPainOrInjury
         self.morningSorenessRating = morningSorenessRating
+        self.deepSleepHours = deepSleepHours
+        self.remSleepHours = remSleepHours
+        self.nocturnalSleepingHeartRateBpm = nocturnalSleepingHeartRateBpm
+        self.restingHeartRateBpm = restingHeartRateBpm
+        self.sleepingRespiratoryRateRpm = sleepingRespiratoryRateRpm
+        self.biomarkerAssessment = biomarkerAssessment
     }
 }
 

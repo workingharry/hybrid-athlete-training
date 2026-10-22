@@ -60,7 +60,7 @@ public struct NutritionCapsuleView: View {
                             .foregroundColor(Color(hex: phase.hexColor))
                         Text(phase.title)
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(HybridTheme.textPrimary)
                     }
                     
                     Spacer()
@@ -69,9 +69,9 @@ public struct NutritionCapsuleView: View {
                     Button(action: onTriggerCamera) {
                         Image(systemName: "camera.viewfinder")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(hex: "58A6FF"))
+                            .foregroundColor(HybridTheme.accentBlue)
                             .frame(width: 26, height: 26)
-                            .background(Color(hex: "21262D"))
+                            .background(HybridTheme.surfaceElevated)
                             .clipShape(Circle())
                     }
                     .highPriorityGesture(TapGesture().onEnded { onTriggerCamera() })
@@ -113,9 +113,9 @@ public struct NutritionCapsuleView: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(HybridTheme.textPrimary)
                             .frame(width: 24, height: 24)
-                            .background(Color(hex: "21262D"))
+                            .background(HybridTheme.surfaceElevated)
                             .clipShape(Circle())
                     }
                     .highPriorityGesture(TapGesture()) // 避免觸發卡片點擊
@@ -128,24 +128,24 @@ public struct NutritionCapsuleView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(isUnlogged ? "—" : "\(Int(model.proteinGrams))")
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(HybridTheme.textPrimary)
                             Text("/ \(Int(model.targetProteinGrams))g")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .foregroundColor(HybridTheme.textSecondary)
                             Spacer()
                             Text("蛋白質")
                                 .font(.system(size: 11))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                         
                         // 細膠囊進度條
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(Color(hex: "21262D"))
+                                    .fill(HybridTheme.surfaceElevated)
                                 Capsule()
                                     .fill(LinearGradient(
-                                        colors: [Color(hex: "58A6FF"), Color(hex: "79C0FF")],
+                                        colors: [HybridTheme.accentBlue, HybridTheme.accentBlue.opacity(0.8)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ))
@@ -161,21 +161,21 @@ public struct NutritionCapsuleView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(isUnlogged ? "—" : "\(Int(model.consumedKcal))")
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
+                                .foregroundColor(HybridTheme.textPrimary)
                             Text("/ ≈\(Int(model.targetKcal))")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .foregroundColor(HybridTheme.textSecondary)
                             Spacer()
                             Text("卡路里")
                                 .font(.system(size: 11))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                         
                         // 細膠囊進度條
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 Capsule()
-                                    .fill(Color(hex: "21262D"))
+                                    .fill(HybridTheme.surfaceElevated)
                                 Capsule()
                                     .fill(LinearGradient(
                                         colors: [Color(hex: phase.hexColor), Color(hex: phase.hexColor).opacity(0.7)],
@@ -195,10 +195,10 @@ public struct NutritionCapsuleView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "3FB950"))
+                            .foregroundColor(HybridTheme.successGreen)
                         Text(toast)
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "3FB950"))
+                            .foregroundColor(HybridTheme.successGreen)
                         Spacer()
                     }
                     .transition(.opacity)
@@ -206,21 +206,21 @@ public struct NutritionCapsuleView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .foregroundColor(HybridTheme.textSecondary)
                         Text(guidanceText)
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .foregroundColor(HybridTheme.textSecondary)
                             .lineLimit(1)
                         Spacer()
                     }
                 }
             }
             .padding(14)
-            .background(Color(hex: "161B22"))
+            .background(HybridTheme.cardBackground)
             .cornerRadius(18)
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color(hex: phase.hexColor).opacity(0.3), lineWidth: 1)
+                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

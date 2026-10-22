@@ -12,10 +12,7 @@ public struct MainTabView: View {
 
     public init() {
         let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor.black
-        appearance.shadowColor = UIColor(Color(hex: "2C2C2E"))
-
+        appearance.configureWithDefaultBackground()
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
@@ -50,6 +47,6 @@ public struct MainTabView: View {
                 }
                 .tag(3)
         }
-        .tint(Color(hex: "0A84FF"))
+        .tint(HybridTheme.accentBlue)
     }
 }

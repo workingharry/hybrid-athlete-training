@@ -17,10 +17,10 @@ public struct WeeklyRingsCardView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "circle.circle.fill")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(hex: "58A6FF"))
+                            .foregroundColor(HybridTheme.accentBlue)
                         Text("週週期雙軌平衡環")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(HybridTheme.textPrimary)
                     }
                     Text(summary.balanceStatus)
                         .font(.system(size: 12, weight: .semibold))
@@ -37,11 +37,11 @@ public struct WeeklyRingsCardView: View {
                             .foregroundColor(badgeColor)
                         Text("/100")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                     Text("雙軌平衡指數")
                         .font(.system(size: 10))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
             }
 
@@ -119,12 +119,12 @@ public struct WeeklyRingsCardView: View {
                     .padding(.top, 2)
                 Text(summary.primaryFeedback)
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "C9D1D9"))
+                    .foregroundColor(HybridTheme.textPrimary)
                     .lineSpacing(3)
                 Spacer()
             }
             .padding(10)
-            .background(Color(hex: "090C10").opacity(0.6))
+            .background(HybridTheme.surfaceElevated)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -132,11 +132,11 @@ public struct WeeklyRingsCardView: View {
             )
         }
         .padding(14)
-        .background(Color(hex: "161B22"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
 
@@ -148,18 +148,18 @@ public struct WeeklyRingsCardView: View {
                     .frame(width: 7, height: 7)
                 Text(title)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text(current)
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(HybridTheme.textPrimary)
                 Text("/ \(target)")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .foregroundColor(HybridTheme.textSecondary)
             }
             Text(subtitle)
                 .font(.system(size: 10))
-                .foregroundColor(Color(hex: "8B949E"))
+                .foregroundColor(HybridTheme.textSecondary)
                 .padding(.leading, 12)
         }
     }
@@ -174,11 +174,11 @@ public struct WeeklyRingsCardView: View {
 
     private var badgeColor: Color {
         if summary.balanceScore >= 75.0 {
-            return Color(hex: "3FB950")
+            return HybridTheme.successGreen
         } else if summary.balanceScore >= 50.0 {
-            return Color(hex: "E3B341")
+            return HybridTheme.warningYellow
         } else {
-            return Color(hex: "58A6FF")
+            return HybridTheme.accentBlue
         }
     }
 }

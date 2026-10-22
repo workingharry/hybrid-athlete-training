@@ -58,8 +58,8 @@ public struct DailyHeroCardView: View {
                         .font(.system(size: 10, weight: .bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "E3B341").opacity(0.2))
-                        .foregroundColor(Color(hex: "E3B341"))
+                        .background(HybridTheme.warningYellow.opacity(0.15))
+                        .foregroundColor(HybridTheme.warningYellow)
                         .cornerRadius(4)
                 }
             }
@@ -82,10 +82,10 @@ public struct DailyHeroCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(activeWorkout.title)
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(HybridTheme.textPrimary)
                 Text(activeWorkout.subtitle)
                     .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .foregroundColor(HybridTheme.textSecondary)
             }
             
             // 核心數值 (時長與負荷)
@@ -93,23 +93,23 @@ public struct DailyHeroCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("預估時長")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                     Text("\(Int(activeWorkout.estimatedDurationMinutes)) 分鐘")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(HybridTheme.textPrimary)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("預估運動負荷")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                     Text("\(Int(activeWorkout.estimatedLoadAU)) AU")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color(hex: "58A6FF"))
+                        .foregroundColor(HybridTheme.accentBlue)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("訓練學科")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                     Text(disciplineTitle(activeWorkout.discipline))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(disciplineColor(activeWorkout.discipline))
@@ -117,7 +117,7 @@ public struct DailyHeroCardView: View {
                 Spacer()
             }
             
-            Divider().background(Color(hex: "30363D"))
+            Divider().background(HybridTheme.cardBorder)
             
             // 動作按鈕區
             HStack(spacing: 12) {
@@ -131,7 +131,7 @@ public struct DailyHeroCardView: View {
                     .font(.system(size: 13, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(hex: "58A6FF"))
+                    .background(HybridTheme.accentBlue)
                     .foregroundColor(Color(hex: "090C10"))
                     .cornerRadius(8)
                 }
@@ -141,18 +141,18 @@ public struct DailyHeroCardView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(.white)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .cornerRadius(8)
                 }
             }
         }
         .padding(18)
-        .background(Color(hex: "161B22"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
     
@@ -171,8 +171,8 @@ public struct DailyHeroCardView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "21262D"))
-            .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "8B949E"))
+            .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
+            .foregroundColor(isSelected ? Color(hex: "090C10") : HybridTheme.textSecondary)
             .cornerRadius(6)
         }
         .buttonStyle(.plain)

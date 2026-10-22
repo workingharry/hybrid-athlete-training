@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		THEME0020000000000000002 /* HybridTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = THEME0010000000000000001 /* HybridTheme.swift */; };
 		07B586626F310701147CB061 /* PreciseNutritionEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECBD798AF63A9C4827F74D0 /* PreciseNutritionEntrySheet.swift */; };
 		0BB2CAE280BE2DA17AC7D3C4 /* WeeklyScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B863C4FB279C45C551253C /* WeeklyScheduleView.swift */; };
 		1969451AEE14A93B1B7311A1 /* GeminiFoodVisionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5A12EC69F80EDAA4122C11D /* GeminiFoodVisionAdapter.swift */; };
@@ -41,6 +42,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		THEME0010000000000000001 /* HybridTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridTheme.swift; sourceTree = "<group>"; };
 		242B0B8E0A4B949A0AD10711 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		26B863C4FB279C45C551253C /* WeeklyScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyScheduleView.swift; sourceTree = "<group>"; };
 		2CC07FBDE980ED3083CD2114 /* QuickLogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLogSheet.swift; sourceTree = "<group>"; };
@@ -242,6 +244,7 @@
 			children = (
 				CFEA75A4AD9EEC97A37A2006 /* HybridTrainingApp.swift */,
 				E731809F62F5AF68A92ECF02 /* MainTabView.swift */,
+				THEME0010000000000000001 /* HybridTheme.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -375,6 +378,7 @@
 				24898860E9FCFE1F7F8D7BAD /* HybridTrainingApp.swift in Sources */,
 				9FDFE80A53B58BB209E494A3 /* LogbookView.swift in Sources */,
 				AA2F942976A0B1B9ED10B6EE /* MainTabView.swift in Sources */,
+				THEME0020000000000000002 /* HybridTheme.swift in Sources */,
 				96E5F12237E64401DA5AA9D1 /* MuscleCooldownCardView.swift in Sources */,
 				E4FAEFC43CCAFC1D3E9B7E99 /* NutritionCapsuleView.swift in Sources */,
 				76DB42ADE3D111FCC211FEC3 /* NutritionDetailSheet.swift in Sources */,
