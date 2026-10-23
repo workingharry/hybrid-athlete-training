@@ -14,6 +14,7 @@ public struct SetBySetLoggingView: View {
     public let onCompleteExercise: ((ExecutedExerciseDetail) -> Void)?
 
     @State private var sets: [ExerciseSetEntry] = []
+    @State private var selectedSetIndex: Int = 0
     @State private var progressionText: String = ""
     @State private var lastPerformedSummary: String = "無近期記錄"
     @State private var restTimerSeconds: Int = 90
@@ -34,7 +35,7 @@ public struct SetBySetLoggingView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
@@ -50,6 +51,9 @@ public struct SetBySetLoggingView: View {
                         // 4. 逐組執行表格 (組 / 上次 / kg / 次 / RIR / 打勾)
                         setTableViewSection
 
+                        // 4.5 極速快捷調整列 (快速微調重量、次數與同上一組)
+                        quickStepperTraySection
+
                         // 5. 新增組數按鈕
                         Button(action: addNewSet) {
                             HStack(spacing: 6) {
@@ -57,33 +61,41 @@ public struct SetBySetLoggingView: View {
                                 Text("新增一組")
                             }
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "0A84FF"))
+                            .foregroundColor(HybridTheme.accentBlue)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(Color(hex: "1C1C1E"))
+                            .background(HybridTheme.cardBackground)
                             .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
+                            )
                         }
 
-                        // 6. 下一個動作按鈕
+                        // 6. 下一個動作或完成按鈕
                         if let next = nextExercise {
                             Button(action: finishAndProceed) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("下一個動作")
                                             .font(.system(size: 11))
-                                            .foregroundColor(Color(hex: "8E8E93"))
+                                            .foregroundColor(HybridTheme.textSecondary)
                                         Text("\(next.name) · \(next.defaultRepRange)")
                                             .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(HybridTheme.textPrimary)
                                     }
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(Color(hex: "8E8E93"))
+                                        .foregroundColor(HybridTheme.textSecondary)
                                 }
                                 .padding(14)
-                                .background(Color(hex: "1C1C1E"))
+                                .background(HybridTheme.cardBackground)
                                 .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 1)
+                                )
                             }
                         } else {
                             Button(action: finishAndProceed) {
@@ -91,8 +103,8 @@ public struct SetBySetLoggingView: View {
                                     .font(.system(size: 15, weight: .bold))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 14)
-                                    .background(Color(hex: "30D158"))
-                                    .foregroundColor(.black)
+                                    .background(HybridTheme.successGreen)
+                                    .foregroundColor(.white)
                                     .cornerRadius(12)
                             }
                         }
@@ -111,7 +123,7 @@ public struct SetBySetLoggingView: View {
                             Image(systemName: "chevron.left")
                             Text("返回")
                         }
-                        .foregroundColor(Color(hex: "0A84FF"))
+                        .foregroundColor(HybridTheme.accentBlue)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -119,7 +131,7 @@ public struct SetBySetLoggingView: View {
                         finishAndProceed()
                     }
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "30D158"))
+                    .foregroundColor(HybridTheme.successGreen)
                 }
             }
             .task {
@@ -138,11 +150,11 @@ public struct SetBySetLoggingView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(exercise.name)
                 .font(.system(size: 28, weight: .heavy))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
 
             Text("上次 \(lastPerformedSummary)")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
 
             // 肌群分攤權重膠囊
             HStack(spacing: 8) {
@@ -151,20 +163,20 @@ public struct SetBySetLoggingView: View {
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color(hex: "0A84FF").opacity(0.15))
-                        .foregroundColor(Color(hex: "0A84FF"))
+                        .background(HybridTheme.accentBlue.opacity(0.12))
+                        .foregroundColor(HybridTheme.accentBlue)
                         .cornerRadius(6)
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color(hex: "0A84FF").opacity(0.3), lineWidth: 1)
+                                .stroke(HybridTheme.accentBlue.opacity(0.25), lineWidth: 1)
                         )
                 }
                 Text(exercise.equipment.displayName)
                     .font(.system(size: 11, weight: .semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color(hex: "2C2C2E"))
-                    .foregroundColor(Color(hex: "8E8E93"))
+                    .background(HybridTheme.surfaceElevated)
+                    .foregroundColor(HybridTheme.textSecondary)
                     .cornerRadius(6)
             }
             .padding(.top, 4)
@@ -176,16 +188,20 @@ public struct SetBySetLoggingView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(progressionText)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
 
             Text("雙重進階 · 經驗法則")
                 .font(.system(size: 11))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
+        )
     }
 
     // MARK: - 3. 組間休息計時器
@@ -194,29 +210,33 @@ public struct SetBySetLoggingView: View {
             HStack {
                 Text("組間休息")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "8E8E93"))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text(formatTimerSeconds(restTimerRemaining))
                     .font(.system(size: 24, weight: .heavy, design: .monospaced))
-                    .foregroundColor(Color(hex: "0A84FF"))
+                    .foregroundColor(HybridTheme.energyOrange)
             }
 
             // 進度條
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color(hex: "2C2C2E"))
+                        .fill(HybridTheme.surfaceElevated)
                         .frame(height: 6)
                     Capsule()
-                        .fill(Color(hex: "0A84FF"))
+                        .fill(HybridTheme.energyOrange)
                         .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(restTimerRemaining) / CGFloat(max(1, restTimerSeconds)))), height: 6)
                 }
             }
             .frame(height: 6)
         }
         .padding(12)
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
+        )
     }
 
     // MARK: - 4. 逐組執行表格
@@ -239,41 +259,44 @@ public struct SetBySetLoggingView: View {
                     .frame(width: 44, alignment: .center)
             }
             .font(.system(size: 11, weight: .bold))
-            .foregroundColor(Color(hex: "8E8E93"))
+            .foregroundColor(HybridTheme.textSecondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color(hex: "161618"))
+            .background(HybridTheme.surfaceElevated)
 
-            Divider().background(Color(hex: "2C2C2E"))
+            Divider().background(HybridTheme.cardBorder)
 
             // 表列
             ForEach(sets.indices, id: \.self) { idx in
                 setRowView(index: idx)
                 if idx < sets.count - 1 {
-                    Divider().background(Color(hex: "2C2C2E"))
+                    Divider().background(HybridTheme.cardBorder)
                 }
             }
         }
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(hex: "2C2C2E"), lineWidth: 1)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
 
     private func setRowView(index: Int) -> some View {
-        HStack(spacing: 0) {
-            // 組號
+        let isSelected = selectedSetIndex == index
+        let isDone = sets[index].isCompleted
+
+        return HStack(spacing: 0) {
+            // 組號 (點擊可切換選中此組)
             Text("\(sets[index].setNumber)")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
+                .font(.system(size: 13, weight: isSelected ? .heavy : .bold))
+                .foregroundColor(isSelected ? HybridTheme.accentBlue : HybridTheme.textPrimary)
                 .frame(width: 32, alignment: .center)
 
             // 上次數值
             Text(sets[index].previousDescription ?? "–")
                 .font(.system(size: 11))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
                 .frame(width: 68, alignment: .center)
 
             // 負重 kg 輸入
@@ -289,9 +312,9 @@ public struct SetBySetLoggingView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
                 .padding(.vertical, 6)
-                .background(Color(hex: "2C2C2E"))
+                .background(HybridTheme.surfaceElevated)
                 .cornerRadius(6)
             }
             .frame(width: 60)
@@ -310,9 +333,9 @@ public struct SetBySetLoggingView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
                 .padding(.vertical, 6)
-                .background(Color(hex: "2C2C2E"))
+                .background(HybridTheme.surfaceElevated)
                 .cornerRadius(6)
             }
             .frame(width: 48)
@@ -331,9 +354,9 @@ public struct SetBySetLoggingView: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
                 .padding(.vertical, 6)
-                .background(Color(hex: "2C2C2E"))
+                .background(HybridTheme.surfaceElevated)
                 .cornerRadius(6)
             }
             .frame(width: 44)
@@ -345,18 +368,209 @@ public struct SetBySetLoggingView: View {
             Button {
                 toggleSetCompleted(at: index)
             } label: {
-                Image(systemName: sets[index].isCompleted ? "checkmark" : "circle")
+                Image(systemName: isDone ? "checkmark" : "circle")
                     .font(.system(size: 13, weight: .bold))
                     .frame(width: 32, height: 32)
-                    .background(sets[index].isCompleted ? Color(hex: "0A84FF") : Color(hex: "2C2C2E"))
-                    .foregroundColor(sets[index].isCompleted ? .white : Color(hex: "8E8E93"))
+                    .background(isDone ? HybridTheme.successGreen : HybridTheme.surfaceElevated)
+                    .foregroundColor(isDone ? .white : HybridTheme.textSecondary)
                     .cornerRadius(6)
             }
             .frame(width: 44, alignment: .center)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(sets[index].isCompleted ? Color(hex: "0A84FF").opacity(0.08) : Color.clear)
+        .background(
+            isSelected
+                ? HybridTheme.accentBlue.opacity(0.08)
+                : (isDone ? HybridTheme.successGreen.opacity(0.06) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedSetIndex = index
+        }
+    }
+
+    // MARK: - 4.5 極速快捷調整列 (Quick Stepper Control Tray)
+    @ViewBuilder
+    private var quickStepperTraySection: some View {
+        if !sets.isEmpty && selectedSetIndex >= 0 && selectedSetIndex < sets.count {
+            let currentSet = sets[selectedSetIndex]
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    HStack(spacing: 5) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(HybridTheme.energyOrange)
+                        Text("第 \(currentSet.setNumber) 組極速微調")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(HybridTheme.textPrimary)
+                    }
+
+                    Spacer()
+
+                    // 同上一組快捷鈕
+                    if selectedSetIndex > 0 {
+                        Button {
+                            copyFromPreviousSet(targetIndex: selectedSetIndex)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.on.doc.fill")
+                                    .font(.system(size: 10))
+                                Text("同上一組 (\(Int(sets[selectedSetIndex - 1].weightKg))kg × \(sets[selectedSetIndex - 1].reps))")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(HybridTheme.surfaceElevated)
+                            .foregroundColor(HybridTheme.accentBlue)
+                            .cornerRadius(6)
+                        }
+                    }
+
+                    // 一鍵套用至所有組數
+                    Button {
+                        applyToAllSets(fromIndex: selectedSetIndex)
+                    } label: {
+                        Text("全部同重量")
+                            .font(.system(size: 11, weight: .semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(HybridTheme.surfaceElevated)
+                            .foregroundColor(HybridTheme.textSecondary)
+                            .cornerRadius(6)
+                    }
+                }
+
+                // 重量快捷微調膠囊: -5kg, -2.5kg, +2.5kg, +5kg
+                HStack(spacing: 8) {
+                    Text("重量")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(HybridTheme.textSecondary)
+                        .frame(width: 32, alignment: .leading)
+
+                    stepperWeightChip(title: "-5 kg", delta: -5.0)
+                    stepperWeightChip(title: "-2.5", delta: -2.5)
+
+                    Text("\(String(format: "%.1f", currentSet.weightKg)) kg")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(HybridTheme.textPrimary)
+                        .frame(minWidth: 54, alignment: .center)
+
+                    stepperWeightChip(title: "+2.5", delta: 2.5)
+                    stepperWeightChip(title: "+5 kg", delta: 5.0)
+                }
+
+                // 次數快捷微調: -1, +1, 次數顯示
+                HStack(spacing: 8) {
+                    Text("次數")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(HybridTheme.textSecondary)
+                        .frame(width: 32, alignment: .leading)
+
+                    stepperRepChip(title: "-1 次", delta: -1)
+
+                    Text("\(currentSet.reps) 次")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(HybridTheme.textPrimary)
+                        .frame(minWidth: 54, alignment: .center)
+
+                    stepperRepChip(title: "+1 次", delta: 1)
+
+                    Spacer()
+
+                    // RIR 快捷標記
+                    HStack(spacing: 4) {
+                        Text("RIR:")
+                            .font(.system(size: 11))
+                            .foregroundColor(HybridTheme.textSecondary)
+                        ForEach([0, 1, 2, 3], id: \.self) { rirVal in
+                            Button {
+                                sets[selectedSetIndex].rir = rirVal
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            } label: {
+                                Text("\(rirVal)")
+                                    .font(.system(size: 11, weight: currentSet.rir == rirVal ? .bold : .medium))
+                                    .frame(width: 24, height: 24)
+                                    .background(currentSet.rir == rirVal ? HybridTheme.energyOrange : HybridTheme.surfaceElevated)
+                                    .foregroundColor(currentSet.rir == rirVal ? .white : HybridTheme.textSecondary)
+                                    .clipShape(Circle())
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(HybridTheme.cardBackground)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
+            )
+        }
+    }
+
+    private func stepperWeightChip(title: String, delta: Double) -> some View {
+        Button {
+            let cur = sets[selectedSetIndex].weightKg
+            let next = max(0.0, cur + delta)
+            sets[selectedSetIndex].weightKg = next
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(HybridTheme.surfaceElevated)
+                .foregroundColor(HybridTheme.textPrimary)
+                .cornerRadius(6)
+        }
+    }
+
+    private func stepperRepChip(title: String, delta: Int) -> some View {
+        Button {
+            let cur = sets[selectedSetIndex].reps
+            let next = max(1, cur + delta)
+            sets[selectedSetIndex].reps = next
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(HybridTheme.surfaceElevated)
+                .foregroundColor(HybridTheme.textPrimary)
+                .cornerRadius(6)
+        }
+    }
+
+    private func copyFromPreviousSet(targetIndex: Int) {
+        guard targetIndex > 0 else { return }
+        let prev = sets[targetIndex - 1]
+        sets[targetIndex].weightKg = prev.weightKg
+        sets[targetIndex].reps = prev.reps
+        sets[targetIndex].rir = prev.rir
+        sets[targetIndex].isCompleted = true
+        sets[targetIndex].completedAt = Date()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        startRestTimer()
+        if targetIndex + 1 < sets.count {
+            selectedSetIndex = targetIndex + 1
+        }
+    }
+
+    private func applyToAllSets(fromIndex: Int) {
+        let baseWeight = sets[fromIndex].weightKg
+        let baseReps = sets[fromIndex].reps
+        let baseRir = sets[fromIndex].rir
+        for i in 0..<sets.count {
+            sets[i].weightKg = baseWeight
+            sets[i].reps = baseReps
+            if sets[i].rir == nil {
+                sets[i].rir = baseRir
+            }
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // MARK: - Actions & Logic

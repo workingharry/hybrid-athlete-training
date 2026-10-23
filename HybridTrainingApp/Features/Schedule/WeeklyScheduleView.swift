@@ -14,14 +14,14 @@ public struct WeeklyScheduleView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         // 1. 日期區間
                         Text(currentWeekRangeString)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "8E8E93"))
+                            .foregroundColor(HybridTheme.textSecondary)
 
                         // 2. 側重分段選擇器 (增肌優先 / 平衡 / 跑步優先)
                         Picker("訓練側重", selection: Binding(
@@ -94,13 +94,13 @@ public struct WeeklyScheduleView: View {
             // 星期
             Text(item.dayOfWeek)
                 .font(.system(size: 15, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
                 .frame(width: 28, alignment: .leading)
 
             // 課表內容
             Text(item.title)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(HybridTheme.textPrimary)
 
             Spacer()
 
@@ -110,15 +110,15 @@ public struct WeeklyScheduleView: View {
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(Color(hex: "FF9F0A").opacity(0.2))
-                    .foregroundColor(Color(hex: "FF9F0A"))
+                    .background(HybridTheme.energyOrange.opacity(0.15))
+                    .foregroundColor(HybridTheme.energyOrange)
                     .cornerRadius(4)
             }
 
             // 類別標籤 (力量 / 跑步 / 恢復)
             Text(item.category.rawValue)
                 .font(.system(size: 12))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
 
             // 替換排程按鈕
             Button {
@@ -127,17 +127,21 @@ public struct WeeklyScheduleView: View {
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "0A84FF"))
+                    .foregroundColor(HybridTheme.accentBlue)
                     .padding(6)
-                    .background(Color(hex: "2C2C2E"))
+                    .background(HybridTheme.surfaceElevated)
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
+        )
     }
 
     private func clashSuggestionCard(_ suggestion: SoftClashSuggestion) -> some View {
@@ -145,16 +149,16 @@ public struct WeeklyScheduleView: View {
             HStack {
                 Text(suggestion.title)
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "FF9F0A"))
+                    .foregroundColor(HybridTheme.energyOrange)
                 Spacer()
                 Text(suggestion.badge)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "8E8E93"))
+                    .foregroundColor(HybridTheme.textSecondary)
             }
 
             Text(suggestion.explanation)
                 .font(.system(size: 13))
-                .foregroundColor(Color(hex: "E5E5EA"))
+                .foregroundColor(HybridTheme.textPrimary)
                 .lineSpacing(4)
 
             HStack(spacing: 8) {

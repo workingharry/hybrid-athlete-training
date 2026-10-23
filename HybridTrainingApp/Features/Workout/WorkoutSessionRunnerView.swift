@@ -19,7 +19,7 @@ public struct WorkoutSessionRunnerView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
@@ -28,16 +28,25 @@ public struct WorkoutSessionRunnerView: View {
                             activeWorkoutBanner
                         }
 
-                        // 2. 4 大動作模式快速篩選膠囊
+                        // 2. 最近常練動作 (1 鍵快速開啟打卡)
+                        if !recentExercises.isEmpty {
+                            recentExercisesSection
+                        }
+
+                        // 3. 經典課表快速排程 (Push / Pull / Legs)
+                        routinePresetSection
+
+                        // 4. 4 大動作模式快速篩選膠囊
                         patternFilterBar
 
-                        // 3. 動作清單 (點擊進入逐組打卡)
+                        // 5. 動作清單 (點擊進入逐組打卡)
                         exerciseListSection
                     }
                     .padding(16)
                     .padding(.bottom, 40)
                 }
             }
+            .searchable(text: $searchKeyword, prompt: "搜尋動作 (如: 臥推, 深蹲, 引體, 划船)")
             .navigationTitle("今日訓練")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -47,7 +56,7 @@ public struct WorkoutSessionRunnerView: View {
                             saveCurrentWorkoutSession()
                         }
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "30D158"))
+                        .foregroundColor(HybridTheme.successGreen)
                     }
                 }
             }
@@ -62,46 +71,166 @@ public struct WorkoutSessionRunnerView: View {
         }
     }
 
+    // MARK: - 最近常練動作 (Recent Exercises)
+    private var recentExercisesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(HybridTheme.accentBlue)
+                Text("最近常練動作")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(HybridTheme.textPrimary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(recentExercises) { ex in
+                        Button {
+                            selectedExercise = ex
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "dumbbell.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(HybridTheme.accentBlue)
+                                    Text(ex.name)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(HybridTheme.textPrimary)
+                                        .lineLimit(1)
+                                }
+
+                                HStack(spacing: 4) {
+                                    Text(ex.equipment.displayName)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(HybridTheme.surfaceElevated)
+                                        .foregroundColor(HybridTheme.textSecondary)
+                                        .cornerRadius(4)
+
+                                    Text(ex.defaultRepRange)
+                                        .font(.system(size: 10))
+                                        .foregroundColor(HybridTheme.textSecondary)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(HybridTheme.cardBackground)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - 經典課表快速載入
+    private var routinePresetSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Image(systemName: "list.bullet.rectangle.portrait.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(HybridTheme.energyOrange)
+                Text("快速載入經典課表")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(HybridTheme.textPrimary)
+            }
+
+            HStack(spacing: 8) {
+                routinePresetChip(title: "上肢推力量", pattern: .upperPush)
+                routinePresetChip(title: "上肢拉力量", pattern: .upperPull)
+                routinePresetChip(title: "下肢深蹲日", pattern: .lowerQuad)
+            }
+        }
+    }
+
+    private func routinePresetChip(title: String, pattern: MovementPattern) -> some View {
+        Button {
+            selectedPattern = pattern
+            if let first = ResistanceExerciseBank.allExercises.first(where: { $0.pattern == pattern }) {
+                selectedExercise = first
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 11))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(HybridTheme.cardBackground)
+            .foregroundColor(HybridTheme.textPrimary)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
+            )
+        }
+    }
+
     private var activeWorkoutBanner: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "flame.fill")
-                    .foregroundColor(Color(hex: "0A84FF"))
+                    .foregroundColor(HybridTheme.coralPink)
                 Text("本次訓練已記錄 \(loggedDetailsInCurrentWorkout.count) 個動作")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(HybridTheme.textPrimary)
                 Spacer()
                 Text("\(totalCompletedSetsInWorkout) 組")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "30D158"))
+                    .foregroundColor(HybridTheme.successGreen)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(loggedDetailsInCurrentWorkout) { d in
                     HStack {
                         Circle()
-                            .fill(Color(hex: "30D158"))
-                            .frame(width: 4, height: 4)
+                            .fill(HybridTheme.successGreen)
+                            .frame(width: 5, height: 5)
                         Text(d.exerciseName)
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "E5E5EA"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(HybridTheme.textPrimary)
                         Spacer()
                         Text("\(d.completedSetsCount) 組 · 總重 \(Int(d.totalVolumeLoadKg)) kg")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "8E8E93"))
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                 }
             }
             .padding(10)
-            .background(Color(hex: "2C2C2E"))
+            .background(HybridTheme.surfaceElevated)
             .cornerRadius(8)
+
+            Button {
+                saveCurrentWorkoutSession()
+            } label: {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("儲存整場訓練 (\(loggedDetailsInCurrentWorkout.count) 項動作)")
+                }
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(HybridTheme.successGreen)
+                .cornerRadius(8)
+            }
+            .padding(.top, 2)
         }
         .padding(12)
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "0A84FF").opacity(0.3), lineWidth: 1)
+                .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
 
@@ -126,12 +255,12 @@ public struct WorkoutSessionRunnerView: View {
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(isSelected ? Color(hex: "0A84FF") : Color(hex: "1C1C1E"))
-                .foregroundColor(isSelected ? .white : Color(hex: "8E8E93"))
+                .background(isSelected ? HybridTheme.accentBlue : HybridTheme.cardBackground)
+                .foregroundColor(isSelected ? .white : HybridTheme.textSecondary)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Color(hex: "0A84FF") : Color(hex: "2C2C2E"), lineWidth: 1)
+                        .stroke(isSelected ? HybridTheme.accentBlue : HybridTheme.cardBorder, lineWidth: 1)
                 )
         }
     }
@@ -146,20 +275,20 @@ public struct WorkoutSessionRunnerView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(ex.name)
                                 .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(HybridTheme.textPrimary)
 
                             HStack(spacing: 6) {
                                 Text(ex.equipment.displayName)
                                     .font(.system(size: 10, weight: .semibold))
-                                    .padding(.horizontal, 5)
+                                    .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Color(hex: "2C2C2E"))
-                                    .foregroundColor(Color(hex: "0A84FF"))
+                                    .background(HybridTheme.surfaceElevated)
+                                    .foregroundColor(HybridTheme.accentBlue)
                                     .cornerRadius(4)
 
                                 Text(ex.defaultRepRange)
                                     .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "8E8E93"))
+                                    .foregroundColor(HybridTheme.textSecondary)
                             }
                         }
 
@@ -167,20 +296,59 @@ public struct WorkoutSessionRunnerView: View {
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "8E8E93"))
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                     .padding(14)
-                    .background(Color(hex: "1C1C1E"))
+                    .background(HybridTheme.cardBackground)
                     .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(HybridTheme.cardBorder, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
+    private var recentExercises: [ResistanceExercise] {
+        var names: [String] = []
+        for session in storedSessions {
+            for ex in session.toDomain().executedExercises {
+                if !names.contains(ex.exerciseName) {
+                    names.append(ex.exerciseName)
+                }
+                if names.count >= 6 { break }
+            }
+            if names.count >= 6 { break }
+        }
+        
+        let found = names.compactMap { name in
+            ResistanceExerciseBank.allExercises.first(where: { $0.name == name })
+        }
+        
+        if found.isEmpty {
+            // 預設常用黃金複合動作
+            return [
+                ResistanceExerciseBank.allExercises[0], // 槓鈴臥推
+                ResistanceExerciseBank.allExercises[5], // 槓鈴深蹲
+                ResistanceExerciseBank.allExercises[3], // 引體向上
+                ResistanceExerciseBank.allExercises[6]  // 羅馬尼亞硬舉
+            ]
+        }
+        return found
+    }
+
     private var filteredExercises: [ResistanceExercise] {
         ResistanceExerciseBank.allExercises.filter { ex in
             if let pat = selectedPattern, ex.pattern != pat { return false }
+            if !searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let kw = searchKeyword.lowercased()
+                let matchName = ex.name.lowercased().contains(kw)
+                let matchEquip = ex.equipment.displayName.lowercased().contains(kw)
+                let matchMuscles = ex.primaryMuscles.contains { $0.lowercased().contains(kw) }
+                if !matchName && !matchEquip && !matchMuscles { return false }
+            }
             return true
         }
     }

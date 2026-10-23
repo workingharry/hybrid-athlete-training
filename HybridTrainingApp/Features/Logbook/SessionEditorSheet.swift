@@ -25,11 +25,11 @@ public struct SessionEditorSheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 Form {
                     // 1. 訓練類型與時間
-                    Section(header: Text("基本訓練資訊").foregroundColor(Color(hex: "8E8E93"))) {
+                    Section(header: Text("基本訓練資訊").foregroundColor(HybridTheme.textSecondary)) {
                         Picker("運動類型", selection: $discipline) {
                             Text("重量訓練").tag(TrainingDiscipline.strength)
                             Text("路跑耐力").tag(TrainingDiscipline.running)
@@ -39,76 +39,76 @@ public struct SessionEditorSheet: View {
                             Text("活動度伸展").tag(TrainingDiscipline.mobility)
                             Text("完全休息").tag(TrainingDiscipline.rest)
                         }
-                        .foregroundColor(.white)
-                        .tint(Color(hex: "0A84FF"))
+                        .foregroundColor(HybridTheme.textPrimary)
+                        .tint(HybridTheme.accentBlue)
 
                         DatePicker("訓練時間", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
-                            .foregroundColor(.white)
-                            .tint(Color(hex: "0A84FF"))
+                            .foregroundColor(HybridTheme.textPrimary)
+                            .tint(HybridTheme.accentBlue)
 
                         HStack {
                             Text("訓練時長")
-                                .foregroundColor(.white)
+                                .foregroundColor(HybridTheme.textPrimary)
                             Spacer()
                             TextField("60", value: $durationMinutes, format: .number)
                                 .keyboardType(.numberPad)
                                 .multilineTextAlignment(.trailing)
-                                .foregroundColor(Color(hex: "0A84FF"))
+                                .foregroundColor(HybridTheme.accentBlue)
                                 .frame(width: 50)
                             Text("分鐘")
-                                .foregroundColor(Color(hex: "8E8E93"))
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                     }
-                    .listRowBackground(Color(hex: "1C1C1E"))
+                    .listRowBackground(HybridTheme.cardBackground)
 
                     // 2. 自覺強度與運動負荷
-                    Section(header: Text("自覺強度 (Foster sRPE)").foregroundColor(Color(hex: "8E8E93"))) {
+                    Section(header: Text("自覺強度 (Foster sRPE)").foregroundColor(HybridTheme.textSecondary)) {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text("RPE 強度：\(String(format: "%.1f", sRPE))")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Text("預估負荷：\(Int(durationMinutes * sRPE)) AU")
-                                    .foregroundColor(Color(hex: "0A84FF"))
+                                    .foregroundColor(HybridTheme.accentBlue)
                             }
                             Slider(value: $sRPE, in: 1.0...10.0, step: 0.5)
-                                .tint(Color(hex: "0A84FF"))
+                                .tint(HybridTheme.accentBlue)
                         }
                     }
-                    .listRowBackground(Color(hex: "1C1C1E"))
+                    .listRowBackground(HybridTheme.cardBackground)
 
                     // 3. 重量訓練動作明細 (僅在肌力時顯示)
                     if discipline == .strength {
                         Section(
                             header: HStack {
                                 Text("已完成動作清單 (\(executedExercises.count))")
-                                    .foregroundColor(Color(hex: "8E8E93"))
+                                    .foregroundColor(HybridTheme.textSecondary)
                                 Spacer()
                                 Button("+ 加動作") {
                                     isShowingExercisePicker = true
                                 }
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "0A84FF"))
+                                .foregroundColor(HybridTheme.accentBlue)
                             }
                         ) {
                             if executedExercises.isEmpty {
                                 Text("目前無個別動作紀錄，點擊右上角新增。")
                                     .font(.system(size: 12))
-                                    .foregroundColor(Color(hex: "8E8E93"))
+                                    .foregroundColor(HybridTheme.textSecondary)
                             } else {
                                 ForEach(executedExercises.indices, id: \.self) { idx in
                                     VStack(alignment: .leading, spacing: 6) {
                                         HStack {
                                             Text(executedExercises[idx].exerciseName)
                                                 .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(.white)
+                                                .foregroundColor(HybridTheme.textPrimary)
                                             Spacer()
                                             Button {
                                                 executedExercises.remove(at: idx)
                                             } label: {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 12))
-                                                    .foregroundColor(Color(hex: "FF453A"))
+                                                    .foregroundColor(HybridTheme.dangerRed)
                                             }
                                         }
 
@@ -116,37 +116,37 @@ public struct SessionEditorSheet: View {
                                             HStack(spacing: 2) {
                                                 Text("組數:")
                                                     .font(.system(size: 11))
-                                                    .foregroundColor(Color(hex: "8E8E93"))
+                                                    .foregroundColor(HybridTheme.textSecondary)
                                                 TextField("組", value: Binding(
                                                     get: { executedExercises[idx].sets ?? 3 },
                                                     set: { executedExercises[idx].sets = $0 }
                                                 ), format: .number)
                                                 .frame(width: 32)
-                                                .foregroundColor(.white)
+                                                .foregroundColor(HybridTheme.textPrimary)
                                             }
 
                                             HStack(spacing: 2) {
                                                 Text("次數:")
                                                     .font(.system(size: 11))
-                                                    .foregroundColor(Color(hex: "8E8E93"))
+                                                    .foregroundColor(HybridTheme.textSecondary)
                                                 TextField("次", value: Binding(
                                                     get: { executedExercises[idx].reps ?? 10 },
                                                     set: { executedExercises[idx].reps = $0 }
                                                 ), format: .number)
                                                 .frame(width: 32)
-                                                .foregroundColor(.white)
+                                                .foregroundColor(HybridTheme.textPrimary)
                                             }
 
                                             HStack(spacing: 2) {
                                                 Text("kg:")
                                                     .font(.system(size: 11))
-                                                    .foregroundColor(Color(hex: "8E8E93"))
+                                                    .foregroundColor(HybridTheme.textSecondary)
                                                 TextField("kg", value: Binding(
                                                     get: { executedExercises[idx].weightKg ?? 0 },
                                                     set: { executedExercises[idx].weightKg = $0 }
                                                 ), format: .number)
                                                 .frame(width: 44)
-                                                .foregroundColor(.white)
+                                                .foregroundColor(HybridTheme.textPrimary)
                                             }
                                         }
                                         .font(.system(size: 12))
@@ -155,7 +155,7 @@ public struct SessionEditorSheet: View {
                                 }
                             }
                         }
-                        .listRowBackground(Color(hex: "1C1C1E"))
+                        .listRowBackground(HybridTheme.cardBackground)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -165,12 +165,12 @@ public struct SessionEditorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(Color(hex: "8E8E93"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("儲存") { saveSession() }
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "30D158"))
+                        .foregroundColor(HybridTheme.successGreen)
                 }
             }
             .sheet(isPresented: $isShowingExercisePicker) {
@@ -185,7 +185,7 @@ public struct SessionEditorSheet: View {
     private var exercisePickerSheet: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
                 List {
                     ForEach(ResistanceExerciseBank.allExercises) { ex in
                         Button {
@@ -204,14 +204,14 @@ public struct SessionEditorSheet: View {
                         } label: {
                             HStack {
                                 Text(ex.name)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Text(ex.equipment.displayName)
                                     .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "0A84FF"))
+                                    .foregroundColor(HybridTheme.accentBlue)
                             }
                         }
-                        .listRowBackground(Color(hex: "1C1C1E"))
+                        .listRowBackground(HybridTheme.cardBackground)
                     }
                 }
                 .scrollContentBackground(.hidden)

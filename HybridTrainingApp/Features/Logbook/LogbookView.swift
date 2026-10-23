@@ -21,23 +21,23 @@ public struct LogbookView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 if isLoading {
                     ProgressView("讀取訓練歷史紀錄...")
-                        .tint(Color(hex: "0A84FF"))
-                        .foregroundColor(Color(hex: "8E8E93"))
+                        .tint(HybridTheme.accentBlue)
+                        .foregroundColor(HybridTheme.textSecondary)
                 } else if recentWorkouts.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "figure.run.circle")
                             .font(.system(size: 48))
-                            .foregroundColor(Color(hex: "8E8E93"))
+                            .foregroundColor(HybridTheme.textSecondary)
                         Text("過去 30 天尚無訓練紀錄")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(HybridTheme.textPrimary)
                         Text("點擊右上角「+」手動補錄，或透過「訓練」頁完成逐組打卡。")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "8E8E93"))
+                            .foregroundColor(HybridTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                     }
@@ -61,8 +61,8 @@ public struct LogbookView: View {
                                     }
                                 }
                             }
-                            .listRowBackground(Color(hex: "1C1C1E"))
-                            .listRowSeparatorTint(Color(hex: "2C2C2E"))
+                            .listRowBackground(HybridTheme.cardBackground)
+                            .listRowSeparatorTint(HybridTheme.cardBorder)
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -78,7 +78,7 @@ public struct LogbookView: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(Color(hex: "0A84FF"))
+                            .foregroundColor(HybridTheme.accentBlue)
                     }
                 }
             }
@@ -111,12 +111,12 @@ public struct LogbookView: View {
                         .foregroundColor(sessionColor(session.discipline))
                     Text(sessionTitle(session))
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(HybridTheme.textPrimary)
                 }
                 Spacer()
                 Text(sessionDateString(session.startDate))
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "8E8E93"))
+                    .foregroundColor(HybridTheme.textSecondary)
             }
 
             if !session.executedExercises.isEmpty {
@@ -124,11 +124,11 @@ public struct LogbookView: View {
                     ForEach(session.executedExercises) { item in
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(Color(hex: "0A84FF"))
+                                .fill(HybridTheme.accentBlue)
                                 .frame(width: 4, height: 4)
                             Text(item.summaryDescription)
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(hex: "E5E5EA"))
+                                .foregroundColor(HybridTheme.textPrimary)
                         }
                     }
                 }
@@ -138,18 +138,18 @@ public struct LogbookView: View {
             HStack(spacing: 12) {
                 Label("\(Int(session.durationMinutes)) 分鐘", systemImage: "clock")
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "8E8E93"))
+                    .foregroundColor(HybridTheme.textSecondary)
 
                 Label("\(Int(session.loadAU)) AU", systemImage: "bolt.fill")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "0A84FF"))
+                    .foregroundColor(HybridTheme.accentBlue)
 
                 Text("sRPE: \(String(format: "%.1f", session.sRPE))")
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(hex: "2C2C2E"))
-                    .foregroundColor(Color(hex: "30D158"))
+                    .background(HybridTheme.surfaceElevated)
+                    .foregroundColor(HybridTheme.successGreen)
                     .cornerRadius(4)
 
                 Spacer()
@@ -166,15 +166,15 @@ public struct LogbookView: View {
         case .healthKitWorkout:
             Text("Apple Watch")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(Color(hex: "8E8E93"))
+                .foregroundColor(HybridTheme.textSecondary)
         case .manualLog:
             Text("手動紀錄")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(Color(hex: "FF9F0A"))
+                .foregroundColor(HybridTheme.energyOrange)
         case .smartMerged:
             Text("智慧合併")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(Color(hex: "30D158"))
+                .foregroundColor(HybridTheme.successGreen)
         }
     }
 
