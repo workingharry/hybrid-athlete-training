@@ -1,0 +1,197 @@
+import Testing
+import Foundation
+@testable import ZeroTypingExpense
+
+@Suite("Vision OCR Engine Tests")
+struct VisionOCRTests {
+    let ocrService = VisionOCRService.shared
+
+    @Test("AlipayHK: Single amount and merchant parsing")
+    func testAlipayHKSingleAmount() {
+        let lines = [
+            "AlipayHK",
+            "付款成功",
+            "商戶名稱：Café de Coral 大家樂",
+            "HK$ 62.00",
+            "交易號：20261023220014008888",
+            "完成"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.provider == .alipayHK)
+        #expect(result.currency == "HKD")
+        #expect(result.amountMinor == 6200)
+        #expect(result.candidateAmountsMinor == [6200])
+        #expect(result.merchantRaw == "Café de Coral 大家樂")
+        #expect(result.sourceTransactionId == "20261023220014008888")
+        #expect(result.requiresManualReview == false)
+        #expect(result.amountConfidence == 1.0)
+    }
+
+    @Test("Alipay China: CNY Currency and Merchant Detection")
+    func testAlipayChinaDetection() {
+        let lines = [
+            "支付宝",
+            "支付成功",
+            "收款方：喜茶 HEYTEA 深圳萬象城店",
+            "¥ 28.50",
+            "訂單號：20261024888899990000",
+            "立即查看"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.provider == .alipayChina)
+        #expect(result.currency == "CNY")
+        #expect(result.amountMinor == 2850)
+        #expect(result.merchantRaw == "喜茶 HEYTEA 深圳萬象城店")
+        #expect(result.sourceTransactionId == "20261024888899990000")
+        #expect(result.requiresManualReview == false)
+    }
+
+    @Test("Ambiguous Amounts: Original Price vs. Discounted Price requires manual review")
+    func testAmbiguousMultiAmountDetection() {
+        // As defined in §5.5 & S04: Original HK$85.00 vs actual paid HK$58.00
+        let lines = [
+            "AlipayHK",
+            "付款成功",
+            "大家樂 Café de Coral",
+            "訂單原價 HK$85.00",
+            "優惠券折抵 -HK$27.00",
+            "實付金額 HK$58.00",
+            "流水號：2026102511223344"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.candidateAmountsMinor.contains(8500))
+        #expect(result.candidateAmountsMinor.contains(2700))
+        #expect(result.candidateAmountsMinor.contains(5800))
+        #expect(result.requiresManualReview == true)
+        #expect(result.amountConfidence == 0.5)
+    }
+
+    @Test("Fallback Merchant Extraction: When colon delimiter is missing")
+    func testFallbackMerchantExtraction() {
+        let lines = [
+            "759 阿信屋",
+            "付款成功",
+            "HK$ 34.50",
+            "完成"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.merchantRaw == "759 阿信屋")
+        #expect(result.amountMinor == 3450)
+        #expect(result.requiresManualReview == false)
+    }
+
+    @Test("Thousands Separator: Parses amounts with commas correctly")
+    func testCommaFormattedAmount() {
+        let lines = [
+            "Apple Store ifc mall",
+            "付款成功",
+            "HK$ 1,250.00",
+            "完成"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 125000)
+        #expect(result.requiresManualReview == false)
+    }
+
+    @Test("Integer amount parsing: 10 hkd, HK$10, and standalone 10")
+    func testIntegerAmountParsing() {
+        let res1 = ocrService.parseRecognizedStrings(["10 hkd"])
+        #expect(res1.amountMinor == 1000)
+        #expect(res1.currency == "HKD")
+
+        let res2 = ocrService.parseRecognizedStrings(["HK$10"])
+        #expect(res2.amountMinor == 1000)
+        #expect(res2.currency == "HKD")
+
+        let res3 = ocrService.parseRecognizedStrings(["10"])
+        #expect(res3.amountMinor == 1000)
+    }
+
+    @Test("English key-value format parsing: amount, merchant, store, payee, currency")
+    func testEnglishKeyValueParsing() {
+        let line1 = "amount: 10 hkd, merchant: seven eleven"
+        let res1 = ocrService.parseRecognizedStrings([line1])
+        #expect(res1.amountMinor == 1000)
+        #expect(res1.currency == "HKD")
+        #expect(res1.merchantRaw == "seven eleven")
+        #expect(res1.requiresManualReview == false)
+
+        let line2 = "store: Starbucks, price: 45, currency: USD"
+        let res2 = ocrService.parseRecognizedStrings([line2])
+        #expect(res2.amountMinor == 4500)
+        #expect(res2.currency == "USD")
+        #expect(res2.merchantRaw == "Starbucks")
+
+        let line3 = "payee: Wellcome, cost: 88.50, cur: HKD"
+        let res3 = ocrService.parseRecognizedStrings([line3])
+        #expect(res3.amountMinor == 8850)
+        #expect(res3.currency == "HKD")
+        #expect(res3.merchantRaw == "Wellcome")
+    }
+
+    @Test("Markdown, quoted, and JSON formatted AI outputs")
+    func testMarkdownAndQuotedAppleIntelligenceOutputs() {
+        // Markdown bold
+        let md = "**amount**: 10 hkd, **merchant**: seven eleven"
+        let resMd = ocrService.parseRecognizedStrings([md])
+        #expect(resMd.amountMinor == 1000)
+        #expect(resMd.currency == "HKD")
+        #expect(resMd.merchantRaw == "seven eleven")
+        #expect(resMd.requiresManualReview == false)
+
+        // Quoted JSON-like format
+        let jsonLike = #"{"amount": "10 hkd", "merchant": "seven eleven"}"#
+        let resJson = ocrService.parseRecognizedStrings([jsonLike])
+        #expect(resJson.amountMinor == 1000)
+        #expect(resJson.currency == "HKD")
+        #expect(resJson.merchantRaw == "seven eleven")
+
+        // Single quoted format
+        let quotes = "amount: '45.00 USD', store: 'Starbucks'"
+        let resQuotes = ocrService.parseRecognizedStrings([quotes])
+        #expect(resQuotes.amountMinor == 4500)
+        #expect(resQuotes.currency == "USD")
+        #expect(resQuotes.merchantRaw == "Starbucks")
+    }
+
+    @Test("Natural language connective extraction and single-line brand preservation")
+    func testConnectiveNaturalLanguageExtraction() {
+        // "HK$68.00 於 Pacific Coffee"
+        let res1 = ocrService.parseRecognizedStrings(["HK$68.00 於 Pacific Coffee"])
+        #expect(res1.amountMinor == 6800)
+        #expect(res1.currency == "HKD")
+        #expect(res1.merchantRaw == "Pacific Coffee")
+
+        // "10 hkd at seven eleven"
+        let res2 = ocrService.parseRecognizedStrings(["10 hkd at seven eleven"])
+        #expect(res2.amountMinor == 1000)
+        #expect(res2.currency == "HKD")
+        #expect(res2.merchantRaw == "seven eleven")
+
+        // "7-Eleven 10 hkd" -> brand number 7 in 7-Eleven preserved
+        let res3 = ocrService.parseRecognizedStrings(["7-Eleven 10 hkd"])
+        #expect(res3.amountMinor == 1000)
+        #expect(res3.currency == "HKD")
+        #expect(res3.merchantRaw == "7-Eleven")
+    }
+
+    @Test("Currency isolation: foreign currency code inside merchant name does not pollute base currency")
+    func testCurrencyIsolationWhenMerchantContainsForeignCurrencyCode() {
+        // Merchant contains "USD", but amount explicitly says "10 hkd"
+        let line = "amount: 10 hkd, merchant: USD Global Express"
+        let res = ocrService.parseRecognizedStrings([line])
+        #expect(res.amountMinor == 1000)
+        #expect(res.currency == "HKD")
+        #expect(res.merchantRaw == "USD Global Express")
+    }
+}
