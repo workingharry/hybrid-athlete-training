@@ -416,4 +416,71 @@ struct URLSchemeAndOnboardingTests {
         #expect(res3.provider == .octopus)
         #expect(res3.amountMinor == 1250)
     }
+
+    @Test("Octopus Onboarding Scenario Configuration")
+    func testOctopusOnboardingScenario() {
+        let scenario = OnboardingScenario.octopusTransit
+        #expect(scenario.rawValue == "八達通與交通卡")
+        #expect(scenario.icon == "tram.circle.fill")
+    }
+
+    @Test("RecordExpenseIntent upgrades generic Octopus merchant with rawInput details")
+    func testRecordExpenseIntentGenericOctopusUpgrade() async throws {
+        // When Apple Wallet passes merchant="八達通" and amount=0, but shortcut rawInput has specific transit operator
+        let intent = RecordExpenseIntent(
+            amount: 0.0,
+            merchant: "八達通",
+            rawInput: "九巴 12.5"
+        )
+
+        let result = try await intent.perform()
+        let entity = try #require(result.value)
+
+        #expect(entity.amount == 12.5)
+        #expect(entity.merchant == "九巴")
+        #expect(entity.paymentMethod == "octopus")
+        #expect(entity.needsReview == false)
+    }
+
+    @Test("RecordExpenseIntent detects TopUp transaction type from rawInput")
+    func testRecordExpenseIntentDetectsTopUpFromRawInput() async throws {
+        let intent = RecordExpenseIntent(
+            amount: 500.0,
+            merchant: "八達通",
+            rawInput: "八達通自動增值 500"
+        )
+
+        let result = try await intent.perform()
+        let entity = try #require(result.value)
+
+        #expect(entity.amount == 500.0)
+
+        let engine = SharedTransactionEngine.shared
+        let allTx = await engine.getAllTransactions()
+        if let last = allTx.first(where: { $0.idempotencyKey.contains("octopus") && $0.amountMinor == 50000 }) {
+            #expect(last.transactionType == .topUp)
+        }
+    }
+
+    @Test("AppState updateTransactionAmount updates amount and changes status to completed")
+    @MainActor
+    func testAppStateUpdateTransactionAmount() async throws {
+        let appState = AppState.shared
+        let tx = try await appState.addSampleTransaction(
+            merchant: "港鐵 MTR (待結算)",
+            amountMinor: 0,
+            currency: "HKD",
+            provider: .octopus,
+            captureChannel: .walletAutomation,
+            transactionType: .payment,
+            isPending: true
+        )
+
+        try await appState.updateTransactionAmount(id: tx.id, newAmountMinor: 1450)
+
+        let updated = appState.transactions.first(where: { $0.id == tx.id })
+        #expect(updated?.amountMinor == 1450)
+        #expect(updated?.ledgerAmountMinor == 1450)
+        #expect(updated?.paymentStatus == .completed)
+    }
 }

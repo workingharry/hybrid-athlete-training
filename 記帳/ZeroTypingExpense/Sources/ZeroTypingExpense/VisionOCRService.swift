@@ -19,6 +19,7 @@ public struct OCRResult: Sendable, Equatable {
     public let ocrEngineVersion: String
     public let ocrTemplateVersion: String
     public let requiresManualReview: Bool
+    public let transactionType: TransactionType
 
     public init(
         provider: PaymentProvider,
@@ -32,7 +33,8 @@ public struct OCRResult: Sendable, Equatable {
         merchantConfidence: Float = 1.0,
         ocrEngineVersion: String = "AppleVision-v1.0",
         ocrTemplateVersion: String = "Alipay-v1.3",
-        requiresManualReview: Bool = false
+        requiresManualReview: Bool = false,
+        transactionType: TransactionType = .payment
     ) {
         self.provider = provider
         self.currency = currency
@@ -46,6 +48,7 @@ public struct OCRResult: Sendable, Equatable {
         self.ocrEngineVersion = ocrEngineVersion
         self.ocrTemplateVersion = ocrTemplateVersion
         self.requiresManualReview = requiresManualReview
+        self.transactionType = transactionType
     }
 }
 
@@ -53,6 +56,26 @@ public final class VisionOCRService: Sendable {
     public static let shared = VisionOCRService()
 
     public init() {}
+
+    /// Normalize full-width digits and symbols to half-width ASCII
+    public static func normalizeOCRText(_ input: String) -> String {
+        let fullWidthMap: [Character: Character] = [
+            "０": "0", "１": "1", "２": "2", "３": "3", "４": "4",
+            "５": "5", "６": "6", "７": "7", "８": "8", "９": "9",
+            "．": ".", "，": ",", "：": ":", "；": ";", "！": "!",
+            "？": "?", "（": "(", "）": ")", "／": "/", "－": "-",
+            "＋": "+", "＝": "=", "＄": "$", "￥": "¥", "％": "%"
+        ]
+        var normalizedChars: [Character] = []
+        for ch in input {
+            if let mapped = fullWidthMap[ch] {
+                normalizedChars.append(mapped)
+            } else {
+                normalizedChars.append(ch)
+            }
+        }
+        return String(normalizedChars)
+    }
 
     /// Sanitize text lines to prevent CSV / formula injection (=, +, -, @, cmd, \t, \r, |)
     public static func sanitizeFormulaPrefix(_ input: String) -> String {
@@ -72,15 +95,31 @@ public final class VisionOCRService: Sendable {
 
     /// Parse array of OCR recognized text lines into structured financial receipt details
     public func parseRecognizedStrings(_ lines: [String]) -> OCRResult {
-        // Sanitize incoming lines against formula injection
-        let rawSanitizedLines = lines.map { VisionOCRService.sanitizeFormulaPrefix($0) }
+        // Normalize fullwidth digits and sanitize incoming lines against formula injection
+        let normalizedLines = lines.map { VisionOCRService.normalizeOCRText($0) }
+        let rawSanitizedLines = normalizedLines.map { VisionOCRService.sanitizeFormulaPrefix($0) }
         let sanitizedLines = VisionOCRService.cleanNaturalLanguageLines(rawSanitizedLines)
         let fullText = sanitizedLines.joined(separator: "\n")
 
-        // 1. Detect Provider & Initial Currency
+        // 1. Detect Provider & Initial Currency & Transaction Type
         let provider = VisionOCRService.detectPaymentProvider(in: fullText)
         let isAlipayChina = (provider == .alipayChina)
         var detectedCurrency = isAlipayChina ? "CNY" : "HKD"
+
+        var detectedType: TransactionType = .payment
+        let lowerFull = fullText.lowercased()
+        if lowerFull.contains("增值") || lowerFull.contains("自動增值") || lowerFull.contains("aavs") ||
+           lowerFull.contains("儲值") || lowerFull.contains("充值") || lowerFull.contains("top up") ||
+           lowerFull.contains("top-up") || lowerFull.contains("add value") || lowerFull.contains("reload") {
+            detectedType = .topUp
+        } else if lowerFull.contains("退款") || lowerFull.contains("退回") || lowerFull.contains("refund") || lowerFull.contains("reversal") {
+            detectedType = .refund
+        } else if lowerFull.contains("轉帳") || lowerFull.contains("轉賬") || lowerFull.contains("轉數快") ||
+                  lowerFull.contains("fps") || lowerFull.contains("transfer") {
+            detectedType = .transfer
+        } else if lowerFull.contains("手續費") || lowerFull.contains("服務費") || lowerFull.contains("handling fee") {
+            detectedType = .fee
+        }
 
         // 2. Extract Key-Value Pairs from lines and comma-delimited segments
         var kvAmountRaw: String?
@@ -88,33 +127,68 @@ public final class VisionOCRService: Sendable {
         var kvCurrencyRaw: String?
         var kvTxIdRaw: String?
 
-        let kvPattern = #"(?i)(?:^|[,;\n{\[])\s*[\*_\-`'"]*([A-Za-z_\u4e00-\u9fa5]+)[\*_\-`'"]*\s*[:=：]\s*[\*`'"]*([^,;\n}\]]+?)[\*`'"]*(?=[,;\n}\]]|$)"#
+        let kvPattern = #"(?i)(?:^|[,;\n{\[])\s*[\*_\-`'"]*([A-Za-z_\u4e00-\u9fa5]+(?:[ \t\/\-][A-Za-z0-9_\u4e00-\u9fa5]+)*)[\*_\-`'"]*\s*[:=：]\s*[\*`'"]*([^,;\n}\]]+?)[\*`'"]*(?=[,;\n}\]]|$)"#
         if let kvRegex = try? NSRegularExpression(pattern: kvPattern, options: []) {
             let nsText = fullText as NSString
             let matches = kvRegex.matches(in: fullText, range: NSRange(location: 0, length: nsText.length))
             for match in matches {
                 if match.numberOfRanges >= 3 {
-                    let key = nsText.substring(with: match.range(at: 1))
+                    let rawKey = nsText.substring(with: match.range(at: 1))
                         .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*_-`'\""))
                         .lowercased()
                     let val = nsText.substring(with: match.range(at: 2))
                         .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*`'\""))
 
-                    switch key {
-                    case "amount", "price", "cost", "val", "total", "sum", "實付金額", "實付", "实际支付", "支付金額", "扣款金額", "總計", "合計", "金額", "扣除", "扣款", "車費", "收費", "支出", "消費":
-                        if kvAmountRaw == nil || key == "實付金額" || key == "實付" || key == "实际支付" || key == "扣款金額" || key == "扣除" || key == "車費" || key == "amount" {
+                    let keyTokens = rawKey.components(separatedBy: CharacterSet(charactersIn: " /-_")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+                    let isAmountKey = keyTokens.contains { k in
+                        ["amount", "price", "cost", "val", "total", "sum", "fare", "charge", "net", "deducted", "paid", "subtotal", "實付金額", "實付", "實際支付", "支付金額", "扣款金額", "總計", "合計", "金額", "扣除", "扣款", "車費", "收費", "支出", "消費", "應付", "八達通扣款"].contains(k)
+                    }
+                    let isMerchantKey = keyTokens.contains { k in
+                        ["merchant", "store", "payee", "shop", "vendor", "seller", "商戶名稱", "收款方", "商戶", "商家", "店舖", "店鋪", "機構", "受款人"].contains(k)
+                    }
+                    let isCurrencyKey = keyTokens.contains { k in
+                        ["currency", "cur", "幣別", "貨幣", "幣種"].contains(k)
+                    }
+                    let isTxIdKey = keyTokens.contains { k in
+                        ["txid", "transaction", "order", "ref", "reference", "txn", "交易號", "訂單號", "流水號", "單號", "參考號"].contains(k)
+                    }
+
+                    if isAmountKey {
+                        if kvAmountRaw == nil || rawKey.contains("實付") || rawKey.contains("實際") || rawKey.contains("扣除") || rawKey.contains("車費") || rawKey.contains("net") {
                             kvAmountRaw = val
                         }
-                    case "merchant", "store", "payee", "shop", "vendor", "seller", "商戶名稱", "收款方", "商戶", "商家", "店舖":
-                        if kvMerchantRaw == nil || key == "merchant" || key == "商戶名稱" || key == "收款方" {
+                    } else if isMerchantKey {
+                        if kvMerchantRaw == nil || rawKey.contains("商戶名稱") || rawKey.contains("收款方") || rawKey == "merchant" {
                             kvMerchantRaw = val
                         }
-                    case "currency", "cur", "幣別", "貨幣":
+                    } else if isCurrencyKey {
                         kvCurrencyRaw = val
-                    case "txid", "transaction", "order", "交易號", "訂單號", "流水號", "單號":
+                    } else if isTxIdKey {
                         kvTxIdRaw = val
-                    default:
-                        break
+                    }
+                }
+            }
+        }
+
+        // Multi-line Key-Value extraction: Line i has key label, Line i+1 has the value
+        if kvAmountRaw == nil || kvMerchantRaw == nil {
+            for (idx, line) in sanitizedLines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n:：;·|*-`'\"")).lowercased()
+                if idx + 1 < sanitizedLines.count {
+                    let nextLine = sanitizedLines[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if kvAmountRaw == nil && (trimmed == "實付金額" || trimmed == "實付" || trimmed == "實際支付" || trimmed == "扣除" || trimmed == "車費" || trimmed == "收費" || trimmed == "扣款金額" || trimmed == "總計" || trimmed == "合計" || trimmed == "total" || trimmed == "net amount" || trimmed == "amount") {
+                        if nextLine.rangeOfCharacter(from: .decimalDigits) != nil || nextLine == "HK$" || nextLine == "$" {
+                            if (nextLine == "HK$" || nextLine == "$" || nextLine == "¥" || nextLine == "元") && idx + 2 < sanitizedLines.count {
+                                kvAmountRaw = nextLine + " " + sanitizedLines[idx + 2].trimmingCharacters(in: .whitespacesAndNewlines)
+                            } else {
+                                kvAmountRaw = nextLine
+                            }
+                        }
+                    } else if kvMerchantRaw == nil && (trimmed == "商戶名稱" || trimmed == "收款方" || trimmed == "商戶" || trimmed == "商家" || trimmed == "merchant" || trimmed == "store" || trimmed == "payee") {
+                        if !nextLine.isEmpty && nextLine.rangeOfCharacter(from: .decimalDigits) == nil {
+                            kvMerchantRaw = nextLine
+                        }
                     }
                 }
             }
@@ -123,7 +197,7 @@ public final class VisionOCRService: Sendable {
         // Helper to extract known currency from a string token
         func extractCurrencyCode(from text: String) -> String? {
             let upper = text.uppercased()
-            if upper.contains("HKD") || upper.contains("HK$") || upper.contains("港幣") {
+            if upper.contains("HKD") || upper.contains("HK$") || upper.contains("港幣") || upper.contains("蚊") {
                 return "HKD"
             } else if upper.contains("USD") || upper.contains("US$") || upper.contains("美元") {
                 return "USD"
@@ -164,10 +238,14 @@ public final class VisionOCRService: Sendable {
         var scoredCandidates: [(amount: Int64, score: Int, isNegative: Bool)] = []
 
         func parseAmountString(_ str: String) -> Int64? {
-            let cleaned = str
-                .replacingOccurrences(of: "(?i)HK\\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\\$|港幣|元", with: "", options: .regularExpression)
+            var cleaned = str
+                .replacingOccurrences(of: "(?i)HK\\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\\$|港幣|元|蚊", with: "", options: .regularExpression)
                 .replacingOccurrences(of: ",", with: "")
                 .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'*`"))
+
+            // Dot-matrix letter O/o confusion fix in decimal part: e.g. .OO -> .00, .O5 -> .05, .5O -> .50
+            cleaned = cleaned.replacingOccurrences(of: #"(?<=\.)[Oo]{1,2}\b"#, with: "00", options: .regularExpression)
+            cleaned = cleaned.replacingOccurrences(of: #"(?<=\.[0-9])[Oo]\b"#, with: "0", options: .regularExpression)
 
             if cleaned.contains(".") {
                 if let decimal = Decimal(string: cleaned) {
@@ -185,25 +263,57 @@ public final class VisionOCRService: Sendable {
         }
 
         let amountPattern = #"(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2})"#
-        let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣)(?![0-9]|\.[0-9])"#
+        let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣|蚊)(?![0-9]|\.[0-9])"#
 
-        // Negative line filter keywords (§5.5)
-        let balanceLineKeywords = ["餘額", "卡片餘額"]
-        let discountLineKeywords = ["優惠", "折扣", "回贈", "積分"]
+        // Cantonese colloquial currency units (e.g. 12蚊5毫, 12蚊半, 12.5蚊, 10蚊, 5毫)
+        let cantoneseDetailedPattern = #"([0-9]{1,6})\s*蚊\s*([0-9]{1,2})\s*毫"#
+        let cantoneseHalfPattern = #"([0-9]{1,6})\s*蚊半"#
+        let cantoneseSimplePattern = #"([0-9]{1,6}(?:\.[0-9]{1,2})?)\s*蚊"#
+        let cantoneseCentPattern = #"(?<![0-9])([0-9]{1,2})\s*毫"#
 
-        // Positive payment keywords
-        let tier1PositiveKeywords = ["扣除", "實付", "實際支付", "扣款金額", "扣款", "收費", "車費"]
-        let tier2PositiveKeywords = ["支出", "消費", "合計", "總計", "总计", "金額", "金额"]
+        // Balance & Discount filters
+        let balanceKeywords = ["餘額", "卡片餘額", "現有結餘", "結餘", "balance", "remaining"]
+        let discountKeywords = ["優惠", "折扣", "回贈", "積分", "折抵", "減免", "discount", "coupon", "promo", "voucher"]
+        let positivePaymentKeywords = ["扣除", "車費", "收費", "實付", "實際支付", "扣款金額", "扣款", "支出", "消費", "應付", "deducted", "fare", "paid", "net"]
+        let tier1PositiveKeywords = ["扣除", "實付", "實際支付", "扣款金額", "扣款", "收費", "車費", "應付", "淨額", "deducted", "fare", "paid", "net"]
+        let tier2PositiveKeywords = ["支出", "消費", "合計", "總計", "总计", "金額", "金额", "total", "amount", "sum"]
+
+        var pendingScoreInheritance: Int = 0
 
         for line in sanitizedLines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            var trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty { continue }
 
-            // Balance lines (e.g. Octopus "餘額 $145.20") are completely discarded from candidate amounts
-            let isBalanceLine = balanceLineKeywords.contains { trimmed.contains($0) }
-            if isBalanceLine {
+            let hasPositiveKeyword = positivePaymentKeywords.contains { trimmed.localizedCaseInsensitiveContains($0) }
+            let hasBalanceKeyword = balanceKeywords.contains { trimmed.localizedCaseInsensitiveContains($0) }
+            let hasDiscountKeyword = discountKeywords.contains { trimmed.localizedCaseInsensitiveContains($0) }
+
+            // If line is PURE balance without payment keywords, skip line entirely
+            if hasBalanceKeyword && !hasPositiveKeyword {
                 continue
             }
+
+            // If line is PURE discount without payment keywords, skip line entirely
+            if hasDiscountKeyword && !hasPositiveKeyword {
+                continue
+            }
+
+            // On mixed lines (e.g. "扣除 $12.50 餘額 $145.20" or "扣除 HK$14.50，卡片餘額為 HK$128.50"), strip balance clause so balance amount is never extracted
+            if hasBalanceKeyword && hasPositiveKeyword {
+                let balanceClausePattern = #"(?i)(?:餘額|卡片餘額|現有結餘|結餘|Remaining(?:\s*Value)?|Card\s*Balance|Balance)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
+                trimmed = trimmed.replacingOccurrences(of: balanceClausePattern, with: "", options: .regularExpression)
+            }
+
+            // Strip discount clause on mixed lines (e.g. "原價 $85.00 折扣 $27.00 實付 $58.00")
+            if hasDiscountKeyword && hasPositiveKeyword {
+                let discountClausePattern = #"(?i)(?:優惠券折抵|優惠折抵|會員優惠|優惠|折扣|折抵|回贈|積分|減免|Discount|Coupon|Promo|Voucher)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
+                trimmed = trimmed.replacingOccurrences(of: discountClausePattern, with: "", options: .regularExpression)
+            }
+
+            // Dot-matrix letter O/o confusion fix in decimal numbers: e.g. .OO -> .00, .O5 -> .05, .5O -> .50
+            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.)[Oo]{1,2}\b"#, with: "00", options: .regularExpression)
+            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.[0-9])[Oo]\b"#, with: "0", options: .regularExpression)
+            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.)[Oo](?=[0-9])"#, with: "0", options: .regularExpression)
 
             // Discard pure $0.00 zero lines
             let containsZeroToken = trimmed == "$0.00" || trimmed == "$0" || trimmed == "0.00" ||
@@ -216,25 +326,70 @@ public final class VisionOCRService: Sendable {
                 continue
             }
 
-            // Discount lines (e.g. "優惠 $2.00", "優惠券折抵 -HK$27.00") are discarded from candidate amounts,
-            // unless the line explicitly indicates net payment (e.g. "扣除優惠後實付 $45.00")
-            let hasDiscountKeyword = discountLineKeywords.contains { trimmed.contains($0) }
-            let hasNetPaymentKeyword = trimmed.contains("實付") || trimmed.contains("實際支付") || trimmed.contains("扣款金額")
-            if hasDiscountKeyword && !hasNetPaymentKeyword {
-                continue
-            }
-
             var lineScore = 20
-            if tier1PositiveKeywords.contains(where: { trimmed.contains($0) }) {
+            if tier1PositiveKeywords.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
                 lineScore = 100
-            } else if tier2PositiveKeywords.contains(where: { trimmed.contains($0) }) {
+            } else if tier2PositiveKeywords.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
                 lineScore = 70
+            } else if pendingScoreInheritance > 0 {
+                lineScore = pendingScoreInheritance
             }
 
             var lineFoundMinors: [Int64] = []
 
+            // Extract Cantonese units first (e.g. 12蚊5毫, 12蚊半, 12.5蚊, 5毫)
+            if let regex = try? NSRegularExpression(pattern: cantoneseDetailedPattern, options: []) {
+                let nsLine = trimmed as NSString
+                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 2 {
+                    let dollarStr = nsLine.substring(with: match.range(at: 1))
+                    let centStr = nsLine.substring(with: match.range(at: 2))
+                    if let d = Int64(dollarStr), let c = Int64(centStr) {
+                        let minor = d * 100 + c * 10
+                        if minor > 0 && !lineFoundMinors.contains(minor) {
+                            lineFoundMinors.append(minor)
+                        }
+                    }
+                }
+            }
+            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseHalfPattern, options: []) {
+                let nsLine = trimmed as NSString
+                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
+                    let dollarStr = nsLine.substring(with: match.range(at: 1))
+                    if let d = Int64(dollarStr) {
+                        let minor = d * 100 + 50
+                        if minor > 0 && !lineFoundMinors.contains(minor) {
+                            lineFoundMinors.append(minor)
+                        }
+                    }
+                }
+            }
+            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseSimplePattern, options: []) {
+                let nsLine = trimmed as NSString
+                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
+                    let amtStr = nsLine.substring(with: match.range(at: 1))
+                    if let dec = Decimal(string: amtStr) {
+                        let minor = NSDecimalNumber(decimal: dec * 100).int64Value
+                        if minor > 0 && !lineFoundMinors.contains(minor) {
+                            lineFoundMinors.append(minor)
+                        }
+                    }
+                }
+            }
+            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseCentPattern, options: []) {
+                let nsLine = trimmed as NSString
+                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
+                    let centStr = nsLine.substring(with: match.range(at: 1))
+                    if let c = Int64(centStr) {
+                        let minor = c * 10
+                        if minor > 0 && !lineFoundMinors.contains(minor) {
+                            lineFoundMinors.append(minor)
+                        }
+                    }
+                }
+            }
+
             // Extract decimal amounts on this line
-            if let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
+            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
                 let nsLine = trimmed as NSString
                 let matches = regex.matches(in: trimmed, range: NSRange(location: 0, length: nsLine.length))
                 for match in matches {
@@ -269,11 +424,27 @@ public final class VisionOCRService: Sendable {
                 }
             }
 
-            // Standalone pure integer line fallback (e.g. "10")
+            // Standalone pure integer line fallback (e.g. "10") - with lower confidence score to prevent route number confusion
             if lineFoundMinors.isEmpty {
                 if let intVal = Int64(trimmed), intVal > 0, intVal < 1000000 {
                     lineFoundMinors.append(intVal * 100)
+                    if lineScore == 20 {
+                        lineScore = 15
+                    }
                 }
+            }
+
+            // Multi-line lookahead propagation: if line had keywords but no amount, pass down score
+            if lineFoundMinors.isEmpty {
+                if tier1PositiveKeywords.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
+                    pendingScoreInheritance = 100
+                } else if tier2PositiveKeywords.contains(where: { trimmed.localizedCaseInsensitiveContains($0) }) {
+                    pendingScoreInheritance = 70
+                } else if trimmed != "HK$" && trimmed != "$" && trimmed != "¥" && trimmed != "元" && trimmed != "HKD" {
+                    pendingScoreInheritance = 0
+                }
+            } else {
+                pendingScoreInheritance = 0
             }
 
             for minor in lineFoundMinors {
@@ -312,16 +483,50 @@ public final class VisionOCRService: Sendable {
                 ("Citybus", "城巴"),
                 ("新巴", "新巴"),
                 ("NWFB", "新巴"),
+                ("龍運巴士", "龍運巴士"),
+                ("龍運", "龍運巴士"),
+                ("LWB", "龍運巴士"),
+                ("新大嶼山巴士", "新大嶼山巴士"),
+                ("嶼巴", "新大嶼山巴士"),
+                ("NLB", "新大嶼山巴士"),
+                ("綠色專線小巴", "綠色專線小巴"),
+                ("專線小巴", "綠色專線小巴"),
+                ("綠VAN", "綠色專線小巴"),
+                ("小巴", "公共小巴"),
                 ("天星小輪", "天星小輪"),
                 ("Star Ferry", "天星小輪"),
                 ("新渡輪", "新渡輪"),
+                ("港九小輪", "港九小輪"),
+                ("HKKF", "港九小輪"),
                 ("香港電車", "香港電車"),
                 ("電車", "香港電車"),
+                ("叮叮", "香港電車"),
+                ("易通行", "易通行 HKeToll"),
+                ("HKeToll", "易通行 HKeToll"),
                 ("7-Eleven", "7-Eleven"),
                 ("7-ELEVEN", "7-Eleven"),
                 ("7-11", "7-Eleven"),
                 ("Circle K", "Circle K"),
-                ("OK便利店", "Circle K")
+                ("OK便利店", "Circle K"),
+                ("百佳", "百佳超級市場"),
+                ("PARKnSHOP", "百佳超級市場"),
+                ("惠康", "惠康超級市場"),
+                ("Wellcome", "惠康超級市場"),
+                ("萬寧", "萬寧"),
+                ("Mannings", "萬寧"),
+                ("屈臣氏", "屈臣氏"),
+                ("Watsons", "屈臣氏"),
+                ("大家樂", "大家樂"),
+                ("Café de Coral", "大家樂"),
+                ("大快活", "大快活"),
+                ("Fairwood", "大快活"),
+                ("美心MX", "美心MX"),
+                ("美心快餐", "美心MX"),
+                ("麥當勞", "麥當勞"),
+                ("McDonald's", "麥當勞"),
+                ("Pacific Coffee", "Pacific Coffee"),
+                ("Starbucks", "Starbucks"),
+                ("星巴克", "Starbucks")
             ]
             for item in transitMerchants {
                 if fullText.localizedCaseInsensitiveContains(item.pattern) {
@@ -466,7 +671,8 @@ public final class VisionOCRService: Sendable {
             merchantConfidence: merchantConf,
             ocrEngineVersion: "AppleVision-v1.0",
             ocrTemplateVersion: "Alipay-v1.3",
-            requiresManualReview: hasAmbiguousAmounts || primaryAmount == nil || merchantCandidate == nil
+            requiresManualReview: hasAmbiguousAmounts || primaryAmount == nil || merchantCandidate == nil,
+            transactionType: detectedType
         )
     }
 
@@ -482,8 +688,13 @@ public final class VisionOCRService: Sendable {
                   upper.contains("MTR") || text.contains("港鐵") || text.contains("機場快綫") || text.contains("輕鐵") ||
                   text.contains("九巴") || upper.contains("KMB") ||
                   text.contains("城巴") || upper.contains("CITYBUS") ||
-                  text.contains("新巴") || text.contains("天星小輪") ||
-                  text.contains("新渡輪") || text.contains("電車") ||
+                  text.contains("新巴") || upper.contains("NWFB") ||
+                  text.contains("龍運") || upper.contains("LWB") ||
+                  text.contains("新大嶼山巴士") || text.contains("大嶼山巴士") || text.contains("嶼巴") || upper.contains("NLB") ||
+                  text.contains("專線小巴") || text.contains("綠VAN") || text.contains("小巴") ||
+                  text.contains("天星小輪") || text.contains("新渡輪") || text.contains("港九小輪") ||
+                  text.contains("香港電車") || text.contains("電車") || text.contains("叮叮") ||
+                  text.contains("易通行") || upper.contains("HKETOLL") ||
                   (text.contains("扣除") && text.contains("餘額")) {
             return .octopus
         } else if upper.contains("PAYME") {

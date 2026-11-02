@@ -135,35 +135,41 @@ public struct RecordExpenseIntent: AppIntent {
         var resolvedMerchant = merchant
         var resolvedCurrency = currency
 
+        let genericMerchants = ["", "Unknown Merchant", "Octopus", "八達通", "快捷交通卡", "Apple Pay", "錢包"]
+        var inferredTxType: TransactionType? = nil
+
         // Multi-field intelligent fallback:
         // If amount is 0, extract amounts from rawInput, notes, or even merchant string
         let candidateTexts = [rawInput, notes, (merchant != "Unknown Merchant" ? merchant : nil)]
             .compactMap { $0 }
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-        if finalAmountMinor == 0 && !candidateTexts.isEmpty {
+        if !candidateTexts.isEmpty {
             for text in candidateTexts {
                 let lines = text.components(separatedBy: .newlines)
                 let parsed = VisionOCRService.shared.parseRecognizedStrings(lines)
-                if let detectedMinor = parsed.amountMinor, detectedMinor > 0 {
+                if finalAmountMinor == 0, let detectedMinor = parsed.amountMinor, detectedMinor > 0 {
                     finalAmountMinor = detectedMinor
                 }
-                if (resolvedMerchant.isEmpty || resolvedMerchant == "Unknown Merchant"), let detectedMerchant = parsed.merchantRaw, detectedMerchant != "Unknown Merchant" {
+                if genericMerchants.contains(resolvedMerchant), let detectedMerchant = parsed.merchantRaw, !genericMerchants.contains(detectedMerchant) {
                     resolvedMerchant = detectedMerchant
                 }
                 if parsed.currency != "HKD" && resolvedCurrency == "HKD" {
                     resolvedCurrency = parsed.currency
                 }
-                if finalAmountMinor > 0 { break }
+                if parsed.transactionType != .payment {
+                    inferredTxType = parsed.transactionType
+                }
+                if finalAmountMinor > 0 && !genericMerchants.contains(resolvedMerchant) { break }
             }
         }
 
         // Multi-candidate merchant fallback when merchant is missing or default
-        if (resolvedMerchant.isEmpty || resolvedMerchant == "Unknown Merchant") && !candidateTexts.isEmpty {
+        if genericMerchants.contains(resolvedMerchant) && !candidateTexts.isEmpty {
             for text in candidateTexts {
                 let lines = text.components(separatedBy: .newlines)
                 let parsed = VisionOCRService.shared.parseRecognizedStrings(lines)
-                if let detectedMerchant = parsed.merchantRaw, detectedMerchant != "Unknown Merchant", !detectedMerchant.isEmpty {
+                if let detectedMerchant = parsed.merchantRaw, !genericMerchants.contains(detectedMerchant) {
                     resolvedMerchant = detectedMerchant
                     break
                 }
@@ -195,16 +201,7 @@ public struct RecordExpenseIntent: AppIntent {
         case "adjustment", "調整":
             parsedType = .adjustment
         default:
-            parsedType = .payment
-        }
-
-        // Double-layer idempotency key (§8.5)
-        let idempotencyKey: String
-        if let stid = sourceTransactionId, !stid.isEmpty {
-            idempotencyKey = "applePay_\(stid)"
-        } else {
-            let cardSuffix = cardLastFour ?? "unknown"
-            idempotencyKey = "applePay_\(cardSuffix)_\(resolvedMerchant)_\(finalAmountMinor)_\(Int(date.timeIntervalSince1970 / 60))"
+            parsedType = inferredTxType ?? .payment
         }
 
         let isZeroAmount = (finalAmountMinor == 0)
@@ -224,6 +221,15 @@ public struct RecordExpenseIntent: AppIntent {
                                  resolvedMerchant.contains("進站")
 
         let effectiveProvider: PaymentProvider = isTransitOrOctopus ? .octopus : .applePay
+
+        // Double-layer idempotency key (§8.5)
+        let idempotencyKey: String
+        if let stid = sourceTransactionId, !stid.isEmpty {
+            idempotencyKey = "\(effectiveProvider.rawValue)_\(stid)"
+        } else {
+            let cardSuffix = cardLastFour ?? "unknown"
+            idempotencyKey = "\(effectiveProvider.rawValue)_\(cardSuffix)_\(resolvedMerchant)_\(finalAmountMinor)_\(Int(date.timeIntervalSince1970 / 60))"
+        }
 
         let needsReview = isZeroAmount
         let reviewStatus: ReviewStatus = needsReview ? .needsReview : .confirmed
@@ -389,7 +395,7 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             reviewStatus: reviewStatus,
             paymentStatus: paymentStatus,
             duplicateStatus: .unique,
-            transactionType: .payment,
+            transactionType: ocrResult.transactionType,
             amountConfidence: ocrResult.amountConfidence,
             currencyConfidence: 1.0,
             merchantConfidence: ocrResult.merchantConfidence,
@@ -477,7 +483,7 @@ public struct ParseClipboardExpenseIntent: AppIntent {
 
         let transaction = TransactionEntity(
             idempotencyKey: idempotencyKey,
-            provider: .applePay,
+            provider: ocrResult.provider,
             captureChannel: .clipboardParse,
             deviceSource: .iPhone,
             sourceTransactionId: effectiveTxId,
@@ -491,7 +497,7 @@ public struct ParseClipboardExpenseIntent: AppIntent {
             reviewStatus: reviewStatus,
             paymentStatus: paymentStatus,
             duplicateStatus: .unique,
-            transactionType: .payment,
+            transactionType: ocrResult.transactionType,
             amountConfidence: ocrResult.amountConfidence,
             currencyConfidence: 1.0,
             merchantConfidence: ocrResult.merchantConfidence
@@ -637,7 +643,7 @@ public struct ParseAIExpenseIntent: AppIntent {
             reviewStatus: reviewStatus,
             paymentStatus: paymentStatus,
             duplicateStatus: .unique,
-            transactionType: .payment,
+            transactionType: ocrResult.transactionType,
             amountConfidence: ocrResult.amountConfidence,
             currencyConfidence: 1.0,
             merchantConfidence: ocrResult.merchantConfidence,

@@ -3,6 +3,7 @@ import SwiftUI
 /// Onboarding Tab Scenario for iOS 27 Multi-Channel Setup
 public enum OnboardingScenario: String, CaseIterable, Identifiable {
     case nfcTap = "門市拍卡實踐"
+    case octopusTransit = "八達通與交通卡"
     case communityTutorials = "線上教學與最佳解法"
     case interactiveSimulator = "捷徑變數模擬器"
     case appleIntelligence = "Apple Intelligence 提示詞"
@@ -16,6 +17,8 @@ public enum OnboardingScenario: String, CaseIterable, Identifiable {
         switch self {
         case .nfcTap:
             return "wave.3.right.circle.fill"
+        case .octopusTransit:
+            return "tram.circle.fill"
         case .communityTutorials:
             return "lightbulb.circle.fill"
         case .interactiveSimulator:
@@ -155,6 +158,74 @@ public struct ApplePayOnboardingView: View {
                     title: "步驟 5：點擊右上角「完成」",
                     description: "點擊右上角「完成」儲存。從現在開始，不論在 7-Eleven、餐廳或地鐵閘門刷卡，0.01 秒背景自動入帳，徹底告別手動記帳！"
                 )
+            }
+
+        case .octopusTransit:
+            VStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "tram.fill")
+                            .foregroundColor(.blue)
+                        Text("八達通 (Octopus) & 快捷交通卡設定指引")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(DesignTokens.Colors.textPrimaryLight)
+                    }
+
+                    Text("因 Apple 錢包對交通卡（八達通、Suica 等）實施離線閘門通訊協定，感應出入閘時 Apple Wallet 僅回傳 $0。零打字記帳為您提供三大無痛最佳實踐：")
+                        .font(.system(size: 13))
+                        .foregroundColor(DesignTokens.Colors.textSecondaryLight)
+                        .lineSpacing(2)
+                }
+                .padding(14)
+                .background(DesignTokens.Colors.surfaceLight)
+                .cornerRadius(12)
+
+                ActiveStepCard(
+                    stepNumber: 1,
+                    title: "方案 A：全自動「$0 待結算配對」（零手動設定）",
+                    description: "【最省心】：在捷徑自動化中直接執行「記錄支出」，感應八達通時系統自動以 $0 建立「待結算」項目，完全不扣減即時預算；出站收到銀行總扣款時自動沖銷，或至「待確認」區一鍵補錄車費！"
+                )
+
+                ActiveStepCard(
+                    stepNumber: 2,
+                    title: "方案 B：捷徑「詢問輸入」彈窗流（極速手動輸入）",
+                    description: "【最精確】：在捷徑自動化中加入「要求輸入 (數字)」，拍卡出閘時 iPhone 輕微震動彈出數字鍵盤，直接輸入「12.5」或「14.5」秒級入帳！"
+                )
+
+                ActiveStepCard(
+                    stepNumber: 3,
+                    title: "方案 C：「輕點背面」截圖辨識流（出閘對準螢幕）",
+                    description: "【高科技】：在出站閘門顯示「扣除 $XX.XX 餘額 $YY.YY」時，輕點背面 2 下，端側 Vision OCR 秒級識別實付車費並自動忽略卡片餘額！"
+                )
+
+                Button(action: {
+                    #if canImport(UIKit)
+                    UIPasteboard.general.string = """
+                    【八達通快捷自動化推薦設定】
+                    1. 打開「捷徑」App ➔「自動化」➔ 新增「交易」自動化
+                    2. 選擇「八達通」，勾選「立即執行」並關閉詢問
+                    3. 新增動作：「要求輸入」(類型：數字，提示：輸入車費)
+                    4. 新增動作：「記錄支出」(金額：所提供的輸入，商戶：八達通)
+                    """
+                    #endif
+                    self.toastMessage = "已複製八達通捷徑設定速查"
+                    self.showToast = true
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        self.showToast = false
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.on.doc.fill")
+                        Text("複製八達通捷徑設定速查")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.blue)
+                    .cornerRadius(10)
+                }
             }
 
         case .communityTutorials:
@@ -658,14 +729,25 @@ public struct ApplePayOnboardingView: View {
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     sandboxButton(
-                        title: "模擬搭乘港鐵拍卡",
-                        amountText: "$0 待結算",
+                        title: "模擬八達通門市消費",
+                        amountText: "$15.50",
                         icon: "tram.fill",
+                        color: Color.blue
+                    ) {
+                        simulateOctopusStorePayment()
+                    }
+
+                    sandboxButton(
+                        title: "模擬港鐵拍卡進站",
+                        amountText: "$0 待結算",
+                        icon: "wave.3.right.circle.fill",
                         color: Color.blue
                     ) {
                         simulateTransitHold()
                     }
+                }
 
+                HStack(spacing: 10) {
                     sandboxButton(
                         title: "模擬線上 Apple Pay",
                         amountText: "$128.00",
@@ -674,9 +756,7 @@ public struct ApplePayOnboardingView: View {
                     ) {
                         simulateOnlineApplePay()
                     }
-                }
 
-                HStack(spacing: 10) {
                     sandboxButton(
                         title: "模擬 App Store 訂閱",
                         amountText: "$38.00 / 月",
@@ -685,7 +765,9 @@ public struct ApplePayOnboardingView: View {
                     ) {
                         simulateAppStoreSubscription()
                     }
+                }
 
+                HStack(spacing: 10) {
                     sandboxButton(
                         title: "模擬退款扣抵",
                         amountText: "-$40.00",
@@ -694,15 +776,15 @@ public struct ApplePayOnboardingView: View {
                     ) {
                         simulateRefundDeduction()
                     }
-                }
 
-                sandboxButton(
-                    title: "測試 URL Scheme 快捷入帳 (Starbucks HK$55.00)",
-                    amountText: "zerotyping://",
-                    icon: "link.circle.fill",
-                    color: DesignTokens.Colors.accentLight
-                ) {
-                    simulateURLScheme()
+                    sandboxButton(
+                        title: "測試 URL Scheme (Starbucks)",
+                        amountText: "HK$55.00",
+                        icon: "link.circle.fill",
+                        color: DesignTokens.Colors.accentLight
+                    ) {
+                        simulateURLScheme()
+                    }
                 }
 
                 sandboxButton(
@@ -854,6 +936,20 @@ public struct ApplePayOnboardingView: View {
     }
 
     // MARK: - Simulation Triggers
+
+    private func simulateOctopusStorePayment() {
+        runSimulation(name: "八達通 7-Eleven 消費") {
+            _ = try await appState.addSampleTransaction(
+                merchant: "7-Eleven 便利店 (八達通扣款)",
+                amountMinor: 1550,
+                currency: "HKD",
+                provider: .octopus,
+                captureChannel: .walletAutomation,
+                transactionType: .payment
+            )
+            return "已模擬八達通門市消費 HK$15.50 於 7-Eleven！帳本與預算已即時更新。"
+        }
+    }
 
     private func simulateTransitHold() {
         runSimulation(name: "港鐵 MTR (港島線進站)") {

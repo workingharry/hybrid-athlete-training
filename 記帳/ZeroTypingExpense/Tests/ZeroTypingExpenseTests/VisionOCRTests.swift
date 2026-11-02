@@ -302,4 +302,139 @@ struct VisionOCRTests {
         #expect(res5.amountMinor == 420)
         #expect(res5.provider == .octopus)
     }
+
+    @Test("Multi-line amounts: label on previous line propagates high keyword confidence score")
+    func testMultiLineAmountScorePropagation() {
+        let lines = [
+            "大家樂",
+            "訂單原價 HK$85.00",
+            "實付金額",
+            "HK$ 58.00"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 5800)
+        #expect(result.merchantRaw == "大家樂")
+        #expect(result.candidateAmountsMinor.contains(5800))
+        #expect(result.candidateAmountsMinor.contains(8500))
+    }
+
+    @Test("Bilingual colon keys with slashes: 扣除/Deducted, 餘額/Remaining, 實付/Net")
+    func testBilingualSlashColonKeys() {
+        let lines = [
+            "7-Eleven",
+            "扣除/Deducted: HK$ 12.50",
+            "餘額/Remaining: HK$ 145.20"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 1250)
+        #expect(result.currency == "HKD")
+        #expect(result.merchantRaw == "7-Eleven")
+        #expect(result.provider == .octopus)
+
+        let netLine = ["實付/Net: $68.00", "商戶/Merchant: Pacific Coffee"]
+        let resNet = ocrService.parseRecognizedStrings(netLine)
+        #expect(resNet.amountMinor == 6800)
+        #expect(resNet.merchantRaw == "Pacific Coffee")
+    }
+
+    @Test("Single-line Octopus notifications: extracts deduction and safely strips balance on same line")
+    func testSingleLineOctopusNotificationSeparation() {
+        // Notification text from Octopus app / SMS on a single line
+        let notif1 = ["八達通扣款通知：已於 港鐵 扣除 HK$14.50，卡片餘額為 HK$128.50。"]
+        let res1 = ocrService.parseRecognizedStrings(notif1)
+
+        #expect(res1.amountMinor == 1450)
+        #expect(res1.provider == .octopus)
+        #expect(res1.merchantRaw == "港鐵")
+        #expect(!res1.candidateAmountsMinor.contains(12850))
+
+        let notif2 = ["九巴車費 $12.50 餘額 $45.00"]
+        let res2 = ocrService.parseRecognizedStrings(notif2)
+
+        #expect(res2.amountMinor == 1250)
+        #expect(res2.merchantRaw == "九巴")
+        #expect(!res2.candidateAmountsMinor.contains(4500))
+    }
+
+    @Test("Cantonese colloquial currency: 蚊, 毫, and 蚊半 parsing")
+    func testCantoneseColloquialCurrencyParsing() {
+        let res1 = ocrService.parseRecognizedStrings(["搭九巴 12蚊5毫"])
+        #expect(res1.amountMinor == 1250)
+        #expect(res1.currency == "HKD")
+        #expect(res1.merchantRaw == "九巴")
+
+        let res2 = ocrService.parseRecognizedStrings(["大家樂 45蚊半"])
+        #expect(res2.amountMinor == 4550)
+        #expect(res2.currency == "HKD")
+        #expect(res2.merchantRaw == "大家樂")
+
+        let res3 = ocrService.parseRecognizedStrings(["車費 12.5蚊"])
+        #expect(res3.amountMinor == 1250)
+        #expect(res3.currency == "HKD")
+
+        let res4 = ocrService.parseRecognizedStrings(["叮叮 3蚊"])
+        #expect(res4.amountMinor == 300)
+        #expect(res4.provider == .octopus)
+        #expect(res4.merchantRaw == "香港電車")
+    }
+
+    @Test("Fullwidth character normalization: converts fullwidth Unicode digits and colons to ASCII")
+    func testFullWidthCharacterNormalization() {
+        let lines = [
+            "商戶名稱：７５９ 阿信屋",
+            "實付金額：４５．００",
+            "訂單號：２０２６１０２８"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 4500)
+        #expect(result.merchantRaw == "759 阿信屋")
+    }
+
+    @Test("Dot-matrix OCR letter-O confusion in amounts: handles $45.OO and $12.O5 gracefully")
+    func testDotMatrixLetterOConfusion() {
+        let res1 = ocrService.parseRecognizedStrings(["Starbucks", "實付 $45.OO"])
+        #expect(res1.amountMinor == 4500)
+        #expect(res1.merchantRaw == "Starbucks")
+
+        let res2 = ocrService.parseRecognizedStrings(["7-Eleven", "實付 $12.O5"])
+        #expect(res2.amountMinor == 1205)
+    }
+
+    @Test("Transaction type detection: Octopus AAVS top up vs payment vs refund")
+    func testTransactionTypeInference() {
+        let topUpRes = ocrService.parseRecognizedStrings(["八達通自動增值 HK$500.00", "卡片餘額 HK$585.00"])
+        #expect(topUpRes.transactionType == .topUp)
+        #expect(topUpRes.amountMinor == 50000)
+        #expect(topUpRes.provider == .octopus)
+
+        let refundRes = ocrService.parseRecognizedStrings(["商戶：Zara", "退款金額：HK$299.00"])
+        #expect(refundRes.transactionType == .refund)
+        #expect(refundRes.amountMinor == 29900)
+    }
+
+    @Test("Expanded Hong Kong transport operators: LWB, NLB, Green Minibus, HKeToll")
+    func testExpandedHKTransportOperators() {
+        let resLWB = ocrService.parseRecognizedStrings(["龍運巴士 A31", "車費 $19.80"])
+        #expect(resLWB.merchantRaw == "龍運巴士")
+        #expect(resLWB.provider == .octopus)
+        #expect(resLWB.amountMinor == 1980)
+
+        let resNLB = ocrService.parseRecognizedStrings(["新大嶼山巴士 38", "車費 $3.40"])
+        #expect(resNLB.merchantRaw == "新大嶼山巴士")
+        #expect(resNLB.provider == .octopus)
+
+        let resGMB = ocrService.parseRecognizedStrings(["綠色專線小巴 403A", "車費 $10.50"])
+        #expect(resGMB.merchantRaw == "綠色專線小巴")
+        #expect(resGMB.provider == .octopus)
+
+        let resHKeToll = ocrService.parseRecognizedStrings(["易通行 HKeToll", "隧道費 $8.00"])
+        #expect(resHKeToll.merchantRaw == "易通行 HKeToll")
+        #expect(resHKeToll.provider == .octopus)
+    }
 }

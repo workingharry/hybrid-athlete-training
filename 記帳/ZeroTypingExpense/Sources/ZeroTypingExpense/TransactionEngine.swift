@@ -196,6 +196,19 @@ public actor TransactionEngine {
         transactions[updated.id] = updated
     }
 
+    /// Update transaction amount directly (e.g. resolving pending $0 Octopus hold)
+    public func updateTransactionAmount(id: UUID, newAmountMinor: Int64) throws {
+        guard var tx = transactions[id] else {
+            throw EngineError.transactionNotFound(id)
+        }
+        tx.amountMinor = newAmountMinor
+        tx.ledgerAmountMinor = newAmountMinor
+        tx.amountConfidence = 1.0
+        tx.paymentStatus = .completed
+        tx.updatedAt = Date()
+        transactions[id] = tx
+    }
+
     /// Resolve category decision in Pending Review
     public func resolveCategory(id: UUID, categoryId: UUID, canonicalMerchant: String? = nil) throws {
         guard var tx = transactions[id] else {

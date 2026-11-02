@@ -249,6 +249,32 @@ public struct PendingReviewView: View {
             .font(.system(size: 14))
             .foregroundColor(DesignTokens.Colors.textSecondaryLight)
 
+        if !tx.candidateAmountsMinor.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("辨識到多個候選金額，點選直接採用：")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(DesignTokens.Colors.textSecondaryLight)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(tx.candidateAmountsMinor, id: \.self) { minor in
+                            CandidateAmountButton(
+                                title: String(format: "%@$%.2f", tx.currency ?? appState.baseCurrency, Double(minor) / 100.0)
+                            ) {
+                                Task {
+                                    try? await appState.updateTransactionAmount(id: tx.id, newAmountMinor: minor)
+                                    let catId = (tx.merchantRaw?.localizedCaseInsensitiveContains("mtr") == true || tx.merchantRaw?.contains("港鐵") == true)
+                                        ? AppState.transportCategoryId
+                                        : AppState.othersCategoryId
+                                    try? await appState.confirmCategory(id: tx.id, categoryId: catId)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         HStack(spacing: 12) {
             Button(action: {
                 Task {

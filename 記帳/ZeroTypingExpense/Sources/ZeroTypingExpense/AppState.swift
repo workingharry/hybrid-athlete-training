@@ -316,6 +316,18 @@ public final class AppState: ObservableObject {
         save()
     }
 
+    public func updateTransactionAmount(id: UUID, newAmountMinor: Int64) async throws {
+        try await engine.updateTransactionAmount(id: id, newAmountMinor: newAmountMinor)
+        if let idx = transactions.firstIndex(where: { $0.id == id }) {
+            transactions[idx].amountMinor = newAmountMinor
+            transactions[idx].ledgerAmountMinor = newAmountMinor
+            transactions[idx].amountConfidence = 1.0
+            transactions[idx].paymentStatus = .completed
+            transactions[idx].updatedAt = Date()
+        }
+        save()
+    }
+
     public func confirmCategory(id: UUID, categoryId: UUID, canonicalMerchant: String? = nil) async throws {
         try await engine.resolveCategory(id: id, categoryId: categoryId, canonicalMerchant: canonicalMerchant)
         if let idx = transactions.firstIndex(where: { $0.id == id }) {
