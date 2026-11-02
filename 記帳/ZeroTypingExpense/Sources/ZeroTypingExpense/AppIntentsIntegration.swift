@@ -311,7 +311,7 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
     public static let title: LocalizedStringResource = "辨識截圖記帳"
     public static let description = IntentDescription("接收付款收據或線上 Apple Pay 截圖，透過 Vision OCR 辨識金額、商戶並自動記帳")
 
-    @Parameter(title: "截圖圖片", description: "直接傳入付款截圖或收據圖片檔案進行端側 AI 辨識", default: nil, supportedContentTypes: [.image])
+    @Parameter(title: "截圖圖片", description: "直接傳入付款截圖或收據圖片檔案進行端側 AI 辨識", default: nil)
     public var screenshotFile: IntentFile?
 
     @Parameter(title: "截圖文字或收據行", description: "從截圖 OCR 或剪貼簿提取之收據文字行數", default: [])

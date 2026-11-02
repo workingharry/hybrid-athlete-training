@@ -20,7 +20,7 @@ public struct RoutineLibrarySheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
@@ -28,8 +28,8 @@ public struct RoutineLibrarySheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("我的自訂課表 (\(storedCustomRoutines.count))")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.cardTitle)
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Button {
                                     isShowingEditor = true
@@ -38,23 +38,27 @@ public struct RoutineLibrarySheet: View {
                                         Image(systemName: "plus.circle.fill")
                                         Text("新增課表")
                                     }
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .font(HybridTheme.Typography.badge.weight(.bold))
+                                    .foregroundColor(HybridTheme.accentBlue)
                                 }
                             }
 
                             if storedCustomRoutines.isEmpty {
                                 HStack {
                                     Image(systemName: "square.and.pencil")
-                                        .foregroundColor(Color(hex: "8B949E"))
+                                        .foregroundColor(HybridTheme.textSecondary)
                                     Text("尚未建立自訂課表，點擊右上角新增您專屬的訓練排程。")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(Color(hex: "8B949E"))
+                                        .font(HybridTheme.Typography.subheadline)
+                                        .foregroundColor(HybridTheme.textSecondary)
                                 }
                                 .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(hex: "161B22"))
-                                .cornerRadius(8)
+                                .background(HybridTheme.cardBackground)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                                )
                             } else {
                                 ForEach(storedCustomRoutines) { sdRoutine in
                                     routineCard(
@@ -72,8 +76,8 @@ public struct RoutineLibrarySheet: View {
                         // 2. 官方精選混合運動員課表
                         VStack(alignment: .leading, spacing: 12) {
                             Text("官方精選混合運動員範本 (4大肌群均衡)")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color(hex: "58A6FF"))
+                                .font(HybridTheme.Typography.cardTitle)
+                                .foregroundColor(HybridTheme.accentBlue)
 
                             ForEach(WorkoutRoutineTemplate.builtInTemplates) { template in
                                 routineCard(
@@ -93,7 +97,7 @@ public struct RoutineLibrarySheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("關閉") { dismiss() }
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
             }
             .sheet(isPresented: $isShowingEditor) {
@@ -111,17 +115,17 @@ public struct RoutineLibrarySheet: View {
             // 標題、自訂/官方標籤、刪除鈕
             HStack {
                 Text(template.name)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.textPrimary)
 
                 if template.isBuiltIn {
                     Text("官方推薦")
-                        .font(.system(size: 9, weight: .bold))
-                        .padding(.horizontal, 5)
+                        .font(HybridTheme.Typography.badge)
+                        .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "58A6FF").opacity(0.2))
-                        .foregroundColor(Color(hex: "58A6FF"))
-                        .cornerRadius(4)
+                        .background(HybridTheme.accentBlue.opacity(0.15))
+                        .foregroundColor(HybridTheme.accentBlue)
+                        .cornerRadius(6)
                 }
 
                 Spacer()
@@ -129,8 +133,8 @@ public struct RoutineLibrarySheet: View {
                 if isDeletable, let onDelete = onDelete {
                     Button(action: onDelete) {
                         Image(systemName: "trash")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "F85149"))
+                            .font(.system(size: 13))
+                            .foregroundColor(HybridTheme.dangerRed)
                     }
                 }
             }
@@ -139,52 +143,52 @@ public struct RoutineLibrarySheet: View {
             HStack(spacing: 6) {
                 ForEach(template.targetPatterns, id: \.self) { pattern in
                     Text(patternDisplayName(pattern))
-                        .font(.system(size: 10, weight: .semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(Color(hex: "8B949E"))
-                        .cornerRadius(4)
+                        .font(HybridTheme.Typography.badge)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textSecondary)
+                        .cornerRadius(6)
                 }
 
                 Spacer()
 
                 Text("\(template.exercises.count)動作 · \(template.totalTargetSets)組 · \(Int(template.estimatedDurationMinutes))分")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.chartAxis)
+                    .foregroundColor(HybridTheme.textSecondary)
             }
 
             // 動作清單摘要
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(template.exercises.prefix(3)) { item in
                     HStack {
                         Circle()
-                            .fill(Color(hex: "58A6FF"))
-                            .frame(width: 4, height: 4)
+                            .fill(HybridTheme.accentBlue)
+                            .frame(width: 5, height: 5)
                         Text(item.exerciseName)
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "C9D1D9"))
+                            .font(HybridTheme.Typography.subheadline)
+                            .foregroundColor(HybridTheme.textPrimary)
                         Spacer()
                         Text("\(item.targetSets)組 x \(item.targetReps)次")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .font(HybridTheme.Typography.chartAxis)
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                 }
                 if template.exercises.count > 3 {
                     Text("...及其他 \(template.exercises.count - 3) 個動作")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(hex: "8B949E"))
-                        .padding(.leading, 8)
+                        .font(HybridTheme.Typography.chartAxis)
+                        .foregroundColor(HybridTheme.textSecondary)
+                        .padding(.leading, 10)
                 }
             }
-            .padding(8)
-            .background(Color(hex: "090C10").opacity(0.5))
-            .cornerRadius(6)
+            .padding(10)
+            .background(HybridTheme.surfaceElevated.opacity(0.5))
+            .cornerRadius(8)
 
             if !template.notes.isEmpty {
                 Text(template.notes)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline)
+                    .foregroundColor(HybridTheme.textSecondary)
                     .lineLimit(2)
             }
 
@@ -197,20 +201,20 @@ public struct RoutineLibrarySheet: View {
                     Image(systemName: "bolt.fill")
                     Text("套用此課表開始打卡")
                 }
-                .font(.system(size: 12, weight: .bold))
+                .font(HybridTheme.Typography.badge.weight(.bold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(Color(hex: "58A6FF"))
-                .foregroundColor(Color(hex: "090C10"))
-                .cornerRadius(6)
+                .padding(.vertical, 10)
+                .background(HybridTheme.accentBlue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
             }
         }
-        .padding(12)
-        .background(Color(hex: "161B22"))
-        .cornerRadius(10)
+        .padding(14)
+        .background(HybridTheme.cardBackground)
+        .cornerRadius(14)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
         )
     }
 

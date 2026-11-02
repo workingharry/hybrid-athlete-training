@@ -49,10 +49,10 @@ public struct WeeklyRingsCardView: View {
             HStack(spacing: 18) {
                 // 三重同心環
                 ZStack {
-                    // 外環：耐力跑量 (Cyan)
+                    // 外環：耐力跑量 (Blue)
                     RingProgressView(
                         progress: summary.enduranceProgressRatio,
-                        ringColor: Color(hex: "58A6FF"),
+                        ringColor: HybridTheme.accentBlue,
                         ringWidth: 8,
                         diameter: 86
                     )
@@ -60,7 +60,7 @@ public struct WeeklyRingsCardView: View {
                     // 中環：肌力有效組數 (Orange)
                     RingProgressView(
                         progress: summary.strengthProgressRatio,
-                        ringColor: Color(hex: "F0883E"),
+                        ringColor: HybridTheme.energyOrange,
                         ringWidth: 8,
                         diameter: 66
                     )
@@ -68,14 +68,14 @@ public struct WeeklyRingsCardView: View {
                     // 內環：4大動作模式覆蓋 (Green)
                     RingProgressView(
                         progress: summary.patternCoverageRatio,
-                        ringColor: Color(hex: "3FB950"),
+                        ringColor: HybridTheme.successGreen,
                         ringWidth: 8,
                         diameter: 46
                     )
 
                     Image(systemName: "bolt.heart.fill")
                         .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(HybridTheme.textPrimary)
                 }
                 .frame(width: 90, height: 90)
 
@@ -83,7 +83,7 @@ public struct WeeklyRingsCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // 耐力指標
                     metricRow(
-                        color: Color(hex: "58A6FF"),
+                        color: HybridTheme.accentBlue,
                         title: "耐力跑量",
                         current: String(format: "%.1f", summary.weeklyEnduranceKm),
                         target: "\(Int(summary.enduranceTargetKm)) km",
@@ -92,7 +92,7 @@ public struct WeeklyRingsCardView: View {
 
                     // 肌力指標
                     metricRow(
-                        color: Color(hex: "F0883E"),
+                        color: HybridTheme.energyOrange,
                         title: "肌力組數",
                         current: "\(summary.weeklyStrengthSetsCount)",
                         target: "\(summary.strengthTargetSets) 組",
@@ -101,7 +101,7 @@ public struct WeeklyRingsCardView: View {
 
                     // 模式覆蓋
                     metricRow(
-                        color: Color(hex: "3FB950"),
+                        color: HybridTheme.successGreen,
                         title: "模式覆蓋",
                         current: "\(summary.coveredPatterns.count)",
                         target: "4 模式",

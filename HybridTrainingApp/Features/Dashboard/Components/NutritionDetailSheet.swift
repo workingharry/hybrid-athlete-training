@@ -76,7 +76,7 @@ public struct NutritionDetailSheet: View {
                                 current: computedProteinGrams,
                                 target: model.targetProteinGrams,
                                 unit: "g",
-                                colorHex: "58A6FF"
+                                color: HybridTheme.accentBlue
                             )
                             
                             macroRow(
@@ -84,7 +84,7 @@ public struct NutritionDetailSheet: View {
                                 current: computedCarbsGrams,
                                 target: model.targetCarbsGrams,
                                 unit: "g",
-                                colorHex: "FF9F0A"
+                                color: HybridTheme.energyOrange
                             )
                             
                             macroRow(
@@ -92,7 +92,7 @@ public struct NutritionDetailSheet: View {
                                 current: computedTotalKcal,
                                 target: model.targetKcal,
                                 unit: "kcal",
-                                colorHex: "3FB950"
+                                color: HybridTheme.successGreen
                             )
                         }
                         .padding(16)
@@ -186,7 +186,7 @@ public struct NutritionDetailSheet: View {
                                         Text("手動記一餐")
                                     }
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .foregroundColor(HybridTheme.accentBlue)
                                 }
                             }
                             
@@ -363,7 +363,7 @@ public struct NutritionDetailSheet: View {
         impact.impactOccurred()
     }
     
-    private func macroRow(title: String, current: Double, target: Double, unit: String, colorHex: String) -> some View {
+    private func macroRow(title: String, current: Double, target: Double, unit: String, color: Color) -> some View {
         let ratio = target > 0 ? min(1.0, max(0.0, current / target)) : 0
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -379,7 +379,7 @@ public struct NutritionDetailSheet: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(HybridTheme.surfaceElevated)
-                    Capsule().fill(Color(hex: colorHex))
+                    Capsule().fill(color)
                         .frame(width: max(0, geo.size.width * ratio))
                 }
             }

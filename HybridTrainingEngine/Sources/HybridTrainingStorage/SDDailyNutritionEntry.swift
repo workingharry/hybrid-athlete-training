@@ -12,6 +12,7 @@ public final class SDDailyNutritionEntry {
     public var fatGrams: Double
     public var mealTypeRaw: String
     public var notes: String
+    public var caffeineMg: Double = 0.0
 
     public init(
         id: UUID = UUID(),
@@ -22,7 +23,8 @@ public final class SDDailyNutritionEntry {
         carbsGrams: Double,
         fatGrams: Double,
         mealTypeRaw: String = "general",
-        notes: String = ""
+        notes: String = "",
+        caffeineMg: Double = 0.0
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -33,5 +35,6 @@ public final class SDDailyNutritionEntry {
         self.fatGrams = fatGrams
         self.mealTypeRaw = mealTypeRaw
         self.notes = notes
+        self.caffeineMg = caffeineMg
     }
 }

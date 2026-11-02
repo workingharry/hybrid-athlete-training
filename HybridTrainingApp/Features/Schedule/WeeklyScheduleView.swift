@@ -67,7 +67,7 @@ public struct WeeklyScheduleView: View {
                         isShowingRoutineLibrary = true
                     } label: {
                         Image(systemName: "folder.fill")
-                            .foregroundColor(Color(hex: "0A84FF"))
+                            .foregroundColor(HybridTheme.accentBlue)
                     }
                 }
             }
@@ -174,8 +174,8 @@ public struct WeeklyScheduleView: View {
                         .font(.system(size: 12, weight: .bold))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color(hex: "0A84FF"))
-                        .foregroundColor(.black)
+                        .background(HybridTheme.accentBlue)
+                        .foregroundColor(.white)
                         .cornerRadius(6)
                 }
 
@@ -202,8 +202,8 @@ public struct WeeklyScheduleView: View {
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(Color(hex: "2C2C2E"))
-                        .foregroundColor(.white)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .cornerRadius(6)
                 }
 
@@ -214,17 +214,17 @@ public struct WeeklyScheduleView: View {
                 } label: {
                     Text("維持")
                         .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "8E8E93"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
             }
             .padding(.top, 4)
         }
         .padding(14)
-        .background(Color(hex: "1C1C1E"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color(hex: "FF9F0A").opacity(0.3), lineWidth: 1)
+                .stroke(HybridTheme.energyOrange.opacity(0.3), lineWidth: 1)
         )
     }
 

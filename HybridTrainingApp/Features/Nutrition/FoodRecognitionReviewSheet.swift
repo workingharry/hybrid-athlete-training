@@ -44,7 +44,7 @@ public struct FoodRecognitionReviewSheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
@@ -58,64 +58,81 @@ public struct FoodRecognitionReviewSheet: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                            .stroke(HybridTheme.cardBorder, lineWidth: 1)
                                     )
                             } else {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(hex: "161B22"))
+                                        .fill(HybridTheme.surfaceElevated)
                                         .frame(width: 80, height: 80)
                                     Image(systemName: "camera.viewfinder")
                                         .font(.system(size: 28))
-                                        .foregroundColor(Color(hex: "58A6FF"))
+                                        .foregroundColor(HybridTheme.accentBlue)
                                 }
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("AI 視覺分析結果")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                HStack(spacing: 6) {
+                                    Text("AI 視覺分析結果")
+                                        .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                        .foregroundColor(HybridTheme.accentBlue)
+                                    
+                                    if let model = initialResult.routedModel {
+                                        Text(model)
+                                            .font(HybridTheme.Typography.badge)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(HybridTheme.accentBlue.opacity(0.15))
+                                            .foregroundColor(HybridTheme.accentBlue)
+                                            .cornerRadius(6)
+                                            .lineLimit(1)
+                                    }
+                                }
 
                                 Text("\(Int(totalCalories)) kcal")
-                                    .font(.system(size: 26, weight: .black, design: .rounded))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.metricHero)
+                                    .foregroundColor(HybridTheme.textPrimary)
 
                                 HStack(spacing: 8) {
-                                    nutrientPill(title: "蛋白", grams: totalProtein, colorHex: "58A6FF")
-                                    nutrientPill(title: "碳水", grams: totalCarbs, colorHex: "FF9F0A")
-                                    nutrientPill(title: "脂肪", grams: totalFat, colorHex: "3FB950")
+                                    nutrientPill(title: "蛋白", grams: totalProtein, color: HybridTheme.accentBlue)
+                                    nutrientPill(title: "碳水", grams: totalCarbs, color: HybridTheme.energyOrange)
+                                    nutrientPill(title: "脂肪", grams: totalFat, color: HybridTheme.successGreen)
                                 }
                             }
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(hex: "161B22"))
+                        .background(HybridTheme.cardBackground)
                         .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                        )
 
                         // 2. 混合運動員建議
                         if let advice = athleteAdvice, !advice.isEmpty {
                             HStack(alignment: .top, spacing: 10) {
                                 Image(systemName: "bolt.fill")
                                     .font(.system(size: 14))
-                                    .foregroundColor(Color(hex: "FF9F0A"))
+                                    .foregroundColor(HybridTheme.energyOrange)
                                     .padding(.top, 2)
 
                                 Text(advice)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color(hex: "C9D1D9"))
+                                    .font(HybridTheme.Typography.subheadline)
+                                    .foregroundColor(HybridTheme.textPrimary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(hex: "1C2128"))
+                            .background(HybridTheme.surfaceElevated.opacity(0.6))
                             .cornerRadius(10)
                         }
 
                         // 3. 食物項目明細與微調
                         VStack(alignment: .leading, spacing: 12) {
                             Text("辨識項目與數值微調")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(HybridTheme.Typography.cardTitle)
+                                .foregroundColor(HybridTheme.textPrimary)
 
                             ForEach($items) { $item in
                                 itemEditorCard(item: $item)
@@ -132,28 +149,28 @@ public struct FoodRecognitionReviewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("加入今日記錄") {
                         commitAndDismiss()
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "3FB950"))
+                    .font(HybridTheme.Typography.badge.weight(.bold))
+                    .foregroundColor(HybridTheme.successGreen)
                 }
             }
         }
     }
 
-    private func nutrientPill(title: String, grams: Double, colorHex: String) -> some View {
+    private func nutrientPill(title: String, grams: Double, color: Color) -> some View {
         HStack(spacing: 3) {
             Text(title)
-                .font(.system(size: 10))
-                .foregroundColor(Color(hex: "8B949E"))
+                .font(HybridTheme.Typography.badge)
+                .foregroundColor(HybridTheme.textSecondary)
             Text("\(Int(grams))g")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(Color(hex: colorHex))
+                .font(HybridTheme.Typography.badge.weight(.bold))
+                .foregroundColor(color)
         }
     }
 
@@ -161,27 +178,27 @@ public struct FoodRecognitionReviewSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 TextField("食物名稱", text: item.foodName)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.textPrimary)
 
                 Spacer()
 
                 Text(item.wrappedValue.estimatedPortion)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.badge)
+                    .foregroundColor(HybridTheme.textSecondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(hex: "21262D"))
+                    .background(HybridTheme.surfaceElevated)
                     .cornerRadius(4)
             }
 
             if !item.wrappedValue.reasoning.isEmpty {
                 Text(item.wrappedValue.reasoning)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline)
+                    .foregroundColor(HybridTheme.textSecondary)
             }
 
-            Divider().background(Color(hex: "30363D"))
+            Divider().background(HybridTheme.cardBorder)
 
             // 數值調節列
             HStack(spacing: 12) {
@@ -192,29 +209,33 @@ public struct FoodRecognitionReviewSheet: View {
             }
         }
         .padding(14)
-        .background(Color(hex: "161B22"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+        )
     }
 
     private func macroStepper(label: String, unit: String, value: Binding<Double>, step: Double) -> some View {
         VStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 10))
-                .foregroundColor(Color(hex: "8B949E"))
+                .font(HybridTheme.Typography.chartAxis)
+                .foregroundColor(HybridTheme.textSecondary)
 
             Text("\(Int(value.wrappedValue))")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .font(HybridTheme.Typography.metricMedium)
+                .foregroundColor(HybridTheme.textPrimary)
 
             HStack(spacing: 4) {
                 Button(action: {
                     value.wrappedValue = max(0, value.wrappedValue - step)
                 }) {
                     Image(systemName: "minus")
-                        .font(.system(size: 9, weight: .bold))
-                        .frame(width: 22, height: 22)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(.white)
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .clipShape(Circle())
                 }
 
@@ -222,10 +243,10 @@ public struct FoodRecognitionReviewSheet: View {
                     value.wrappedValue += step
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 9, weight: .bold))
-                        .frame(width: 22, height: 22)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(.white)
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .clipShape(Circle())
                 }
             }

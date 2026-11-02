@@ -86,4 +86,24 @@ final class FoodVisionRecognizerTests: XCTestCase {
         XCTAssertEqual(result.totalProteinGrams, 20)
         XCTAssertEqual(result.totalCalories, 180)
     }
+
+    func test_foodRecognitionResult_supportsRoutedModelAttribution() {
+        let result = FoodRecognitionResult(
+            items: [
+                FoodItemPrediction(
+                    foodName: "水煮蛋",
+                    calories: 78,
+                    proteinGrams: 6.5,
+                    carbsGrams: 0.5,
+                    fatGrams: 5.3
+                )
+            ],
+            athleteAdvice: "優質蛋白質",
+            routedModel: "nvidia/nemotron-3.5-super-vl:free (via openrouter/free)"
+        )
+        
+        XCTAssertEqual(result.routedModel, "nvidia/nemotron-3.5-super-vl:free (via openrouter/free)")
+        XCTAssertEqual(FoodVisionEngineMode.autoHybrid.rawValue, "autoHybrid")
+        XCTAssertEqual(FoodVisionEngineMode.localOnly.rawValue, "localOnly")
+    }
 }

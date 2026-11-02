@@ -49,23 +49,23 @@ public struct DailyHeroCardView: View {
                     Image(systemName: disciplineIcon(activeWorkout.discipline))
                         .foregroundColor(disciplineColor(activeWorkout.discipline))
                     Text(selectedTab == 0 ? "今日最佳自適應推薦" : "自主選課推薦")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(HybridTheme.Typography.subheadline.weight(.semibold))
                         .foregroundColor(disciplineColor(activeWorkout.discipline))
                 }
                 Spacer()
                 if isLockedDueToFatigue {
                     Text("疲勞受限保護")
-                        .font(.system(size: 10, weight: .bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .font(HybridTheme.Typography.badge)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
                         .background(HybridTheme.warningYellow.opacity(0.15))
                         .foregroundColor(HybridTheme.warningYellow)
-                        .cornerRadius(4)
+                        .cornerRadius(6)
                 }
             }
             
             // 多軌選課切換晶片 (跑步 / 阻力 / 交叉)
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 programTabChip(index: 0, title: "綜合主推", icon: "sparkles")
                 if runningOption != nil {
                     programTabChip(index: 1, title: "跑步方案", icon: "figure.run")
@@ -79,39 +79,39 @@ public struct DailyHeroCardView: View {
             }
             
             // 課表名稱與副標題
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(activeWorkout.title)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(HybridTheme.Typography.title2)
                     .foregroundColor(HybridTheme.textPrimary)
                 Text(activeWorkout.subtitle)
-                    .font(.system(size: 13))
+                    .font(HybridTheme.Typography.subheadline)
                     .foregroundColor(HybridTheme.textSecondary)
             }
             
             // 核心數值 (時長與負荷)
             HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("預估時長")
-                        .font(.system(size: 11))
+                        .font(HybridTheme.Typography.badge.weight(.regular))
                         .foregroundColor(HybridTheme.textSecondary)
                     Text("\(Int(activeWorkout.estimatedDurationMinutes)) 分鐘")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(HybridTheme.Typography.metricMedium)
                         .foregroundColor(HybridTheme.textPrimary)
                 }
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("預估運動負荷")
-                        .font(.system(size: 11))
+                        .font(HybridTheme.Typography.badge.weight(.regular))
                         .foregroundColor(HybridTheme.textSecondary)
                     Text("\(Int(activeWorkout.estimatedLoadAU)) AU")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(HybridTheme.Typography.metricMedium)
                         .foregroundColor(HybridTheme.accentBlue)
                 }
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("訓練學科")
-                        .font(.system(size: 11))
+                        .font(HybridTheme.Typography.badge.weight(.regular))
                         .foregroundColor(HybridTheme.textSecondary)
                     Text(disciplineTitle(activeWorkout.discipline))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(HybridTheme.Typography.badge.weight(.semibold))
                         .foregroundColor(disciplineColor(activeWorkout.discipline))
                 }
                 Spacer()
@@ -128,30 +128,30 @@ public struct DailyHeroCardView: View {
                         Image(systemName: "applewatch")
                         Text("推播此課表至手錶")
                     }
-                    .font(.system(size: 13, weight: .bold))
+                    .font(HybridTheme.Typography.cardTitle)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
                     .background(HybridTheme.accentBlue)
-                    .foregroundColor(Color(hex: "090C10"))
-                    .cornerRadius(8)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
                 }
                 
                 Button(action: onSelectAlternates) {
                     Text("更多備選")
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
+                        .font(HybridTheme.Typography.subheadline.weight(.semibold))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .background(HybridTheme.surfaceElevated)
                         .foregroundColor(HybridTheme.textPrimary)
-                        .cornerRadius(8)
+                        .cornerRadius(10)
                 }
             }
         }
         .padding(18)
         .background(HybridTheme.cardBackground)
-        .cornerRadius(14)
+        .cornerRadius(16)
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(HybridTheme.cardBorder, lineWidth: 1)
         )
     }
@@ -163,17 +163,17 @@ public struct DailyHeroCardView: View {
                 selectedTab = index
             }
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                 Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                    .font(HybridTheme.Typography.badge.weight(isSelected ? .bold : .medium))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
-            .foregroundColor(isSelected ? Color(hex: "090C10") : HybridTheme.textSecondary)
-            .cornerRadius(6)
+            .foregroundColor(isSelected ? .white : HybridTheme.textSecondary)
+            .cornerRadius(8)
         }
         .buttonStyle(.plain)
     }
@@ -192,13 +192,13 @@ public struct DailyHeroCardView: View {
     
     private func disciplineColor(_ d: TrainingDiscipline) -> Color {
         switch d {
-        case .running: return Color(hex: "58A6FF")
-        case .cycling: return Color(hex: "D29922")
-        case .swimming: return Color(hex: "39C5BB")
-        case .rowing: return Color(hex: "A371F7")
-        case .strength: return Color(hex: "F85149")
-        case .mobility: return Color(hex: "3FB950")
-        case .rest: return Color(hex: "8B949E")
+        case .running: return HybridTheme.accentBlue
+        case .cycling: return HybridTheme.energyOrange
+        case .swimming: return HybridTheme.healthTeal
+        case .rowing: return HybridTheme.activityPurple
+        case .strength: return HybridTheme.dangerRed
+        case .mobility: return HybridTheme.successGreen
+        case .rest: return HybridTheme.textSecondary
         }
     }
     

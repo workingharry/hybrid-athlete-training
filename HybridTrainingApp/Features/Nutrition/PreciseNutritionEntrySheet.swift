@@ -30,6 +30,7 @@ public struct PreciseNutritionEntrySheet: View {
     public let initialProtein: Double
     public let initialCarbs: Double
     public let initialFat: Double
+    public let initialCaffeineMg: Double
     public let initialPortion: String
     public let initialCategory: MealCategory
     public let athleteNote: String?
@@ -43,12 +44,13 @@ public struct PreciseNutritionEntrySheet: View {
     @State private var protein: Double
     @State private var carbs: Double
     @State private var fat: Double
+    @State private var caffeineMg: Double
     @State private var notes: String
 
     @FocusState private var focusedField: NutritionField?
 
     private enum NutritionField {
-        case foodName, portion, calories, protein, carbs, fat, notes
+        case foodName, portion, calories, protein, carbs, fat, caffeine, notes
     }
 
     public init(
@@ -57,6 +59,7 @@ public struct PreciseNutritionEntrySheet: View {
         initialProtein: Double = 0,
         initialCarbs: Double = 0,
         initialFat: Double = 0,
+        initialCaffeineMg: Double = 0,
         initialPortion: String = "1份",
         initialCategory: MealCategory = .lunch,
         athleteNote: String? = nil,
@@ -68,6 +71,7 @@ public struct PreciseNutritionEntrySheet: View {
         self.initialProtein = initialProtein
         self.initialCarbs = initialCarbs
         self.initialFat = initialFat
+        self.initialCaffeineMg = initialCaffeineMg
         self.initialPortion = initialPortion
         self.initialCategory = initialCategory
         self.athleteNote = athleteNote
@@ -81,6 +85,7 @@ public struct PreciseNutritionEntrySheet: View {
         self._protein = State(initialValue: initialProtein)
         self._carbs = State(initialValue: initialCarbs)
         self._fat = State(initialValue: initialFat)
+        self._caffeineMg = State(initialValue: initialCaffeineMg)
         self._notes = State(initialValue: athleteNote ?? "")
     }
 
@@ -107,7 +112,7 @@ public struct PreciseNutritionEntrySheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
@@ -122,18 +127,18 @@ public struct PreciseNutritionEntrySheet: View {
                             } else {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(hex: "161B22"))
+                                        .fill(HybridTheme.surfaceElevated)
                                         .frame(width: 72, height: 72)
                                     Image(systemName: "fork.knife")
                                         .font(.system(size: 24))
-                                        .foregroundColor(Color(hex: "58A6FF"))
+                                        .foregroundColor(HybridTheme.accentBlue)
                                 }
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("餐別分類")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .font(HybridTheme.Typography.badge)
+                                    .foregroundColor(HybridTheme.textSecondary)
 
                                 Picker("餐別", selection: $selectedCategory) {
                                     ForEach(MealCategory.allCases) { cat in
@@ -141,62 +146,70 @@ public struct PreciseNutritionEntrySheet: View {
                                     }
                                 }
                                 .pickerStyle(.menu)
-                                .tint(Color(hex: "58A6FF"))
+                                .tint(HybridTheme.accentBlue)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(Color(hex: "21262D"))
+                                .background(HybridTheme.surfaceElevated)
                                 .cornerRadius(8)
                             }
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(hex: "161B22"))
+                        .background(HybridTheme.cardBackground)
                         .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                        )
 
                         // 2. 食物名稱與份量輸入
                         VStack(alignment: .leading, spacing: 10) {
                             Text("食物基本資訊")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             VStack(spacing: 8) {
                                 HStack {
                                     Text("食物名稱")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .font(HybridTheme.Typography.body.weight(.semibold))
+                                        .foregroundColor(HybridTheme.textPrimary)
                                         .frame(width: 80, alignment: .leading)
                                     TextField("例如：舒肥牛排、乳清蛋白", text: $foodName)
                                         .focused($focusedField, equals: .foodName)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(HybridTheme.textPrimary)
                                 }
-                                Divider().background(Color(hex: "30363D"))
+                                Divider().background(HybridTheme.cardBorder)
                                 HStack {
                                     Text("份量描述")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .font(HybridTheme.Typography.body.weight(.semibold))
+                                        .foregroundColor(HybridTheme.textPrimary)
                                         .frame(width: 80, alignment: .leading)
                                     TextField("例如：1塊 (200g)、1碗", text: $portionDescription)
                                         .focused($focusedField, equals: .portion)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(HybridTheme.textPrimary)
                                 }
                             }
                             .padding(14)
-                            .background(Color(hex: "161B22"))
+                            .background(HybridTheme.cardBackground)
                             .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                            )
                         }
 
                         // 3. 巨量營養素精細輸入格 (點擊數字彈出鍵盤，支援微調步進按鈕)
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("三大營養素與熱量")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                    .foregroundColor(HybridTheme.textSecondary)
                                 Spacer()
                                 Button("依三大營養素自動換算熱量") {
                                     calories = round(calculatedCalories)
                                 }
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(Color(hex: "58A6FF"))
+                                .font(HybridTheme.Typography.badge.weight(.semibold))
+                                .foregroundColor(HybridTheme.accentBlue)
                             }
 
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -205,7 +218,7 @@ public struct PreciseNutritionEntrySheet: View {
                                     unit: "kcal",
                                     value: $calories,
                                     step: 50,
-                                    colorHex: "3FB950",
+                                    color: HybridTheme.successGreen,
                                     field: .calories
                                 )
                                 nutrientInputCard(
@@ -213,7 +226,7 @@ public struct PreciseNutritionEntrySheet: View {
                                     unit: "g",
                                     value: $protein,
                                     step: 5,
-                                    colorHex: "58A6FF",
+                                    color: HybridTheme.accentBlue,
                                     field: .protein
                                 )
                                 nutrientInputCard(
@@ -221,7 +234,7 @@ public struct PreciseNutritionEntrySheet: View {
                                     unit: "g",
                                     value: $carbs,
                                     step: 10,
-                                    colorHex: "FF9F0A",
+                                    color: HybridTheme.energyOrange,
                                     field: .carbs
                                 )
                                 nutrientInputCard(
@@ -229,8 +242,16 @@ public struct PreciseNutritionEntrySheet: View {
                                     unit: "g",
                                     value: $fat,
                                     step: 2,
-                                    colorHex: "D29922",
+                                    color: HybridTheme.warningYellow,
                                     field: .fat
+                                )
+                                nutrientInputCard(
+                                    title: "咖啡因",
+                                    unit: "mg",
+                                    value: $caffeineMg,
+                                    step: 25,
+                                    color: HybridTheme.caffeineBrown,
+                                    field: .caffeine
                                 )
                             }
                         }
@@ -238,19 +259,19 @@ public struct PreciseNutritionEntrySheet: View {
                         // 4. 即時巨量營養素熱量比例條 (Macro Energy Ratio)
                         VStack(alignment: .leading, spacing: 8) {
                             Text("巨量熱量佔比 (P : C : F)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.badge.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             GeometryReader { geo in
                                 HStack(spacing: 2) {
                                     Rectangle()
-                                        .fill(Color(hex: "58A6FF"))
+                                        .fill(HybridTheme.accentBlue)
                                         .frame(width: max(0, geo.size.width * (proteinPercent / 100)))
                                     Rectangle()
-                                        .fill(Color(hex: "FF9F0A"))
+                                        .fill(HybridTheme.energyOrange)
                                         .frame(width: max(0, geo.size.width * (carbsPercent / 100)))
                                     Rectangle()
-                                        .fill(Color(hex: "D29922"))
+                                        .fill(HybridTheme.warningYellow)
                                         .frame(width: max(0, geo.size.width * (fatPercent / 100)))
                                 }
                                 .clipShape(Capsule())
@@ -258,30 +279,38 @@ public struct PreciseNutritionEntrySheet: View {
                             .frame(height: 8)
 
                             HStack {
-                                macroLegend(label: "蛋白 \(Int(proteinPercent))%", colorHex: "58A6FF")
+                                macroLegend(label: "蛋白 \(Int(proteinPercent))%", color: HybridTheme.accentBlue)
                                 Spacer()
-                                macroLegend(label: "碳水 \(Int(carbsPercent))%", colorHex: "FF9F0A")
+                                macroLegend(label: "碳水 \(Int(carbsPercent))%", color: HybridTheme.energyOrange)
                                 Spacer()
-                                macroLegend(label: "脂肪 \(Int(fatPercent))%", colorHex: "D29922")
+                                macroLegend(label: "脂肪 \(Int(fatPercent))%", color: HybridTheme.warningYellow)
                             }
                             .padding(.top, 4)
                         }
                         .padding(14)
-                        .background(Color(hex: "161B22"))
+                        .background(HybridTheme.cardBackground)
                         .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                        )
 
                         // 5. 備註筆記
                         VStack(alignment: .leading, spacing: 8) {
                             Text("備註與心得")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             TextField("例如：重訓結束後 30 分鐘攝取", text: $notes)
                                 .focused($focusedField, equals: .notes)
-                                .foregroundColor(.white)
+                                .foregroundColor(HybridTheme.textPrimary)
                                 .padding(12)
-                                .background(Color(hex: "161B22"))
+                                .background(HybridTheme.cardBackground)
                                 .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                                )
                         }
 
                         Spacer(minLength: 30)
@@ -294,7 +323,7 @@ public struct PreciseNutritionEntrySheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
 
                 ToolbarItemGroup(placement: .keyboard) {
@@ -302,15 +331,15 @@ public struct PreciseNutritionEntrySheet: View {
                     Button("完成輸入") {
                         focusedField = nil
                     }
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .foregroundColor(HybridTheme.accentBlue)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成入庫") {
                         saveEntry()
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "3FB950"))
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.successGreen)
                     .disabled(foodName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -322,26 +351,26 @@ public struct PreciseNutritionEntrySheet: View {
         unit: String,
         value: Binding<Double>,
         step: Double,
-        colorHex: String,
+        color: Color,
         field: NutritionField
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.chartAxis)
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text(unit)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color(hex: colorHex))
+                    .font(HybridTheme.Typography.badge.weight(.bold))
+                    .foregroundColor(color)
             }
 
             HStack(alignment: .firstTextBaseline) {
                 TextField("0", value: value, format: .number)
                     .keyboardType(.decimalPad)
                     .focused($focusedField, equals: field)
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.metricHero)
+                    .foregroundColor(HybridTheme.textPrimary)
             }
 
             // 步進按鈕微調列
@@ -350,11 +379,11 @@ public struct PreciseNutritionEntrySheet: View {
                     value.wrappedValue = max(0, value.wrappedValue - step)
                 }) {
                     Text("-\(Int(step))")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(HybridTheme.Typography.badge.weight(.bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(.white)
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .cornerRadius(6)
                 }
 
@@ -362,28 +391,32 @@ public struct PreciseNutritionEntrySheet: View {
                     value.wrappedValue += step
                 }) {
                     Text("+\(Int(step))")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(HybridTheme.Typography.badge.weight(.bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
-                        .background(Color(hex: "21262D"))
-                        .foregroundColor(Color(hex: colorHex))
+                        .background(HybridTheme.surfaceElevated)
+                        .foregroundColor(color)
                         .cornerRadius(6)
                 }
             }
         }
         .padding(12)
-        .background(Color(hex: "161B22"))
+        .background(HybridTheme.cardBackground)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+        )
     }
 
-    private func macroLegend(label: String, colorHex: String) -> some View {
+    private func macroLegend(label: String, color: Color) -> some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(Color(hex: colorHex))
+                .fill(color)
                 .frame(width: 6, height: 6)
             Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(Color(hex: "C9D1D9"))
+                .font(HybridTheme.Typography.badge)
+                .foregroundColor(HybridTheme.textSecondary)
         }
     }
 
@@ -395,6 +428,7 @@ public struct PreciseNutritionEntrySheet: View {
             proteinGrams: max(0, protein),
             carbsGrams: max(0, carbs),
             fatGrams: max(0, fat),
+            caffeineMg: max(0, caffeineMg),
             confidence: 1.0,
             reasoning: notes
         )

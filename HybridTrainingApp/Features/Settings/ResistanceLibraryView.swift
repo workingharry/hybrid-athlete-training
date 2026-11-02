@@ -13,28 +13,32 @@ public struct ResistanceLibraryView: View {
     
     public var body: some View {
         ZStack {
-            Color(hex: "090C10").ignoresSafeArea()
+            HybridTheme.background.ignoresSafeArea()
             
             VStack(spacing: 12) {
                 // 搜尋列
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                     TextField("搜尋動作名稱、肌群、器材或英文...", text: $searchText)
-                        .foregroundColor(.white)
+                        .foregroundColor(HybridTheme.textPrimary)
                         .autocorrectionDisabled()
                     if !searchText.isEmpty {
                         Button {
                             searchText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                     }
                 }
                 .padding(10)
-                .background(Color(hex: "161B22"))
+                .background(HybridTheme.cardBackground)
                 .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                )
                 .padding(.horizontal, 16)
                 
                 // 動作模式快速篩選 Chip
@@ -70,54 +74,54 @@ public struct ResistanceLibraryView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text(exercise.name)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.cardTitle)
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Text(patternName(exercise.pattern))
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
+                                    .font(HybridTheme.Typography.badge)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2.5)
                                     .background(patternColor(exercise.pattern).opacity(0.18))
                                     .foregroundColor(patternColor(exercise.pattern))
-                                    .cornerRadius(4)
+                                    .cornerRadius(6)
                             }
                             
                             Text(exercise.englishName)
-                                .font(.system(size: 12))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline)
+                                .foregroundColor(HybridTheme.textSecondary)
                             
                             HStack(spacing: 6) {
                                 Image(systemName: equipmentIcon(exercise.equipment))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .font(HybridTheme.Typography.badge)
+                                    .foregroundColor(HybridTheme.accentBlue)
                                 Text(exercise.equipment.displayName)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .font(HybridTheme.Typography.badge)
+                                    .foregroundColor(HybridTheme.accentBlue)
                                 
                                 Text("•")
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .foregroundColor(HybridTheme.textSecondary)
                                 
                                 Text(exercise.primaryMuscles.joined(separator: ", "))
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .font(HybridTheme.Typography.badge)
+                                    .foregroundColor(HybridTheme.textSecondary)
 
                                 Text("•")
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .foregroundColor(HybridTheme.textSecondary)
 
                                 Text("休 \(exercise.defaultRestSeconds)s")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(Color(hex: "3FB950"))
+                                    .font(HybridTheme.Typography.badge.weight(.semibold))
+                                    .foregroundColor(HybridTheme.successGreen)
                             }
                             
                             if !exercise.techniqueCues.isEmpty {
                                 Text("💡 " + exercise.techniqueCues)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(Color(hex: "D29922"))
+                                    .font(HybridTheme.Typography.subheadline)
+                                    .foregroundColor(HybridTheme.energyOrange)
                                     .padding(.top, 2)
                             }
                         }
-                        .padding(.vertical, 6)
-                        .listRowBackground(Color(hex: "161B22"))
+                        .padding(.vertical, 8)
+                        .listRowBackground(HybridTheme.cardBackground)
                     }
                 }
                 .listStyle(.plain)
@@ -155,11 +159,11 @@ public struct ResistanceLibraryView: View {
             selectedPattern = pattern
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .font(HybridTheme.Typography.badge.weight(isSelected ? .bold : .medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "21262D"))
-                .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
+                .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
+                .foregroundColor(isSelected ? .white : HybridTheme.textPrimary)
                 .cornerRadius(16)
         }
     }
@@ -170,11 +174,11 @@ public struct ResistanceLibraryView: View {
             selectedEquipment = eq
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                .font(HybridTheme.Typography.badge.weight(isSelected ? .bold : .medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color(hex: "3FB950") : Color(hex: "21262D"))
-                .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
+                .background(isSelected ? HybridTheme.successGreen : HybridTheme.surfaceElevated)
+                .foregroundColor(isSelected ? .white : HybridTheme.textPrimary)
                 .cornerRadius(16)
         }
     }
@@ -190,10 +194,10 @@ public struct ResistanceLibraryView: View {
     
     private func patternColor(_ p: MovementPattern) -> Color {
         switch p {
-        case .lowerQuad: return Color(hex: "F85149")
-        case .lowerPosterior: return Color(hex: "D29922")
-        case .upperPush: return Color(hex: "58A6FF")
-        case .upperPull: return Color(hex: "3FB950")
+        case .lowerQuad: return HybridTheme.dangerRed
+        case .lowerPosterior: return HybridTheme.energyOrange
+        case .upperPush: return HybridTheme.accentBlue
+        case .upperPull: return HybridTheme.successGreen
         }
     }
     

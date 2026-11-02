@@ -6,6 +6,7 @@ import HybridTrainingStorage
 /// 今日命令中心 (DashboardView)
 public struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \SDWorkoutSession.startDate, order: .reverse) private var storedSessions: [SDWorkoutSession]
     @Query(sort: \SDDailyNutritionEntry.timestamp, order: .reverse) private var storedNutritionEntries: [SDDailyNutritionEntry]
     
@@ -19,6 +20,8 @@ public struct DashboardView: View {
     @State private var isShowingSettings: Bool = false
     @State private var scheduleStatusMessage: String?
     @State private var isShowingNutritionDetail: Bool = false
+    @State private var circadianOutcome: CircadianPlanOutcome? = nil
+    @State private var isShowingCircadianDetail: Bool = false
     
     // AI 食物視覺辨識與自訂精確輸入狀態
     @State private var isShowingCameraPicker: Bool = false
@@ -30,7 +33,7 @@ public struct DashboardView: View {
     @State private var isShowingPreciseEntrySheet: Bool = false
     @State private var prefillPreciseEntryData: PreciseEntryPrefillData? = nil
     @State private var editingNutritionEntry: SDDailyNutritionEntry? = nil
-    private let foodVisionAdapter = GeminiFoodVisionAdapter()
+    private let foodVisionAdapter = OpenRouterFoodVisionAdapter()
     
     private var todayNutritionEntries: [SDDailyNutritionEntry] {
         let calendar = Calendar.current
@@ -163,6 +166,19 @@ public struct DashboardView: View {
                             }
                         )
                         
+                        // 1.8 今日晝夜精力節律卡片
+                        if let circadianOutcome = circadianOutcome {
+                            CircadianEnergyCurveCardView(
+                                outcome: circadianOutcome,
+                                onTapDetail: {
+                                    isShowingCircadianDetail = true
+                                },
+                                onLogCaffeine: { mg in
+                                    logQuickCaffeine(mg: mg)
+                                }
+                            )
+                        }
+                        
                         // 2. 週週期雙軌平衡環 (耐力/肌力/模式三重環)
                         if let summary = weeklySummary {
                             WeeklyRingsCardView(summary: summary)
@@ -194,25 +210,29 @@ public struct DashboardView: View {
                         if let message = scheduleStatusMessage {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(Color(hex: "3FB950"))
+                                    .foregroundColor(HybridTheme.successGreen)
                                 Text(message)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.subheadline.weight(.semibold))
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                             }
-                            .padding(12)
-                            .background(Color(hex: "161B22"))
-                            .cornerRadius(8)
+                            .padding(14)
+                            .background(HybridTheme.cardBackground)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(HybridTheme.cardBorder, lineWidth: 1)
+                            )
                         }
                     }
                     .padding(16)
-                    .padding(.bottom, 90) // 預留底部雙按鈕高度
+                    .padding(.bottom, 96) // 預留底部雙按鈕高度
                 }
                 
                 // 6. 底部常駐雙操作鈕 (常用課表庫 + 15 秒打卡)
                 VStack(spacing: 0) {
                     Spacer()
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         Button {
                             isShowingRoutineLibrary = true
                         } label: {
@@ -220,14 +240,14 @@ public struct DashboardView: View {
                                 Image(systemName: "folder.fill")
                                 Text("常用課表")
                             }
-                            .font(.system(size: 14, weight: .bold))
+                            .font(HybridTheme.Typography.body.weight(.semibold))
                             .padding(.vertical, 14)
                             .padding(.horizontal, 16)
                             .background(HybridTheme.cardBackground)
                             .foregroundColor(HybridTheme.accentBlue)
-                            .cornerRadius(12)
+                            .cornerRadius(14)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 14)
                                     .stroke(HybridTheme.cardBorder, lineWidth: 1)
                             )
                         }
@@ -238,15 +258,15 @@ public struct DashboardView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "plus.circle.fill")
-                                Text("記錄訓練 (15 秒快速打卡)")
+                                Text("記錄訓練 (15 秒打卡)")
                             }
-                            .font(.system(size: 15, weight: .bold))
+                            .font(HybridTheme.Typography.body.weight(.bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(HybridTheme.successGreen)
                             .foregroundColor(Color.white)
-                            .cornerRadius(12)
-                            .shadow(color: HybridTheme.successGreen.opacity(0.3), radius: 10, y: 4)
+                            .cornerRadius(14)
+                            .shadow(color: HybridTheme.successGreen.opacity(0.35), radius: 10, y: 4)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -266,12 +286,12 @@ public struct DashboardView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(currentDateString)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .font(HybridTheme.Typography.badge.weight(.semibold))
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 14) {
                         Button {
                             isShowingAudit = true
                         } label: {
@@ -279,16 +299,16 @@ public struct DashboardView: View {
                                 Image(systemName: "stethoscope")
                                 Text("探針")
                             }
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "0A84FF"))
+                            .font(HybridTheme.Typography.subheadline.weight(.semibold))
+                            .foregroundColor(HybridTheme.accentBlue)
                         }
 
                         Button {
                             isShowingSettings = true
                         } label: {
                             Image(systemName: "gearshape")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color(hex: "8E8E93"))
+                                .font(.system(size: 16))
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                     }
                 }
@@ -335,6 +355,7 @@ public struct DashboardView: View {
                             protein: entry.proteinGrams,
                             carbs: entry.carbsGrams,
                             fat: entry.fatGrams,
+                            caffeineMg: entry.caffeineMg,
                             category: cat,
                             notes: entry.notes
                         )
@@ -342,6 +363,11 @@ public struct DashboardView: View {
                     }
                 )
                 .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $isShowingCircadianDetail) {
+                if let circadianOutcome = circadianOutcome {
+                    CircadianScheduleDetailSheet(outcome: circadianOutcome)
+                }
             }
             .confirmationDialog("記錄飲食方式", isPresented: $isShowingSourceDialog, titleVisibility: .visible) {
                 Button("拍攝餐點照片") {
@@ -372,6 +398,7 @@ public struct DashboardView: View {
                         initialProtein: prefill.protein,
                         initialCarbs: prefill.carbs,
                         initialFat: prefill.fat,
+                        initialCaffeineMg: prefill.caffeineMg,
                         initialPortion: prefill.portion,
                         initialCategory: prefill.category,
                         athleteNote: prefill.notes,
@@ -386,6 +413,7 @@ public struct DashboardView: View {
                         initialProtein: 0,
                         initialCarbs: 0,
                         initialFat: 0,
+                        initialCaffeineMg: 0,
                         initialPortion: "1份",
                         initialCategory: .lunch,
                         athleteNote: nil,
@@ -412,23 +440,35 @@ public struct DashboardView: View {
                         Color.black.opacity(0.65).ignoresSafeArea()
                         VStack(spacing: 14) {
                             ProgressView()
-                                .tint(Color(hex: "58A6FF"))
+                                .tint(HybridTheme.accentBlue)
                                 .scaleEffect(1.4)
                             Text("AI 正在分析餐點熱量與蛋白質...")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(HybridTheme.Typography.cardTitle)
+                                .foregroundColor(HybridTheme.textPrimary)
                             Text("請稍候，多模態視覺處理中")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline)
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                         .padding(24)
-                        .background(Color(hex: "161B22"))
+                        .background(HybridTheme.cardBackground)
                         .cornerRadius(16)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                        )
                     }
                 }
             }
             .task {
                 refreshDailyDecision()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .healthKitBackgroundSyncDidUpdate)) { _ in
+                refreshDailyDecision()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    refreshDailyDecision()
+                }
             }
         }
     }
@@ -437,13 +477,13 @@ public struct DashboardView: View {
     private var alternatesSheet: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
                 
                 ScrollView {
                     VStack(spacing: 12) {
                         Text("運動學互補安全備選")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .font(HybridTheme.Typography.subheadline)
+                            .foregroundColor(HybridTheme.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         if let decision = decision, !decision.safeAlternates.isEmpty {
@@ -451,37 +491,42 @@ public struct DashboardView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text(alt.title)
-                                            .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(.white)
+                                            .font(HybridTheme.Typography.cardTitle)
+                                            .foregroundColor(HybridTheme.textPrimary)
                                         Spacer()
                                         Text("\(Int(alt.estimatedDurationMinutes))m · \(Int(alt.estimatedLoadAU)) AU")
-                                            .font(.system(size: 13))
-                                            .foregroundColor(Color(hex: "58A6FF"))
+                                            .font(HybridTheme.Typography.chartAxis.weight(.bold))
+                                            .foregroundColor(HybridTheme.accentBlue)
                                     }
                                     Text(alt.subtitle)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(Color(hex: "8B949E"))
+                                        .font(HybridTheme.Typography.subheadline)
+                                        .foregroundColor(HybridTheme.textSecondary)
                                     
                                     Button {
                                         scheduleWorkout(alt)
                                         isShowingAlternates = false
                                     } label: {
                                         Text("選用並推播至手錶")
-                                            .font(.system(size: 12, weight: .bold))
+                                            .font(HybridTheme.Typography.badge.weight(.bold))
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 8)
-                                            .background(Color(hex: "21262D"))
-                                            .foregroundColor(Color(hex: "58A6FF"))
-                                            .cornerRadius(6)
+                                            .background(HybridTheme.surfaceElevated)
+                                            .foregroundColor(HybridTheme.accentBlue)
+                                            .cornerRadius(8)
                                     }
                                 }
                                 .padding(14)
-                                .background(Color(hex: "161B22"))
-                                .cornerRadius(10)
+                                .background(HybridTheme.cardBackground)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                                )
                             }
                         } else {
                             Text("目前無其他安全備選課表")
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline)
+                                .foregroundColor(HybridTheme.textSecondary)
                         }
                     }
                     .padding(16)
@@ -527,9 +572,42 @@ public struct DashboardView: View {
                 calendar: calendar
             )
             
+            // 7. 計算晝夜精力節律排程 (結合 HealthKit 清醒時間、習慣作息、睡眠債、睡眠結構、真實歷史睡眠與咖啡因攝取)
+            let circadianInputs = await healthKitAdapter.fetchCircadianInputs(targetDate: now)
+            let circadianEngine = CircadianRhythmEngine()
+            
+            // 查詢過去 36 小時體內未完全代謝之咖啡因攝取 (Bateman 藥物動力學疊加)
+            let relevantCaffeineIntakes: [CaffeineIntakeDose] = storedNutritionEntries
+                .filter { $0.caffeineMg > 0 && $0.timestamp >= now.addingTimeInterval(-36 * 3600) && $0.timestamp <= now.addingTimeInterval(24 * 3600) }
+                .map { entry in
+                    CaffeineIntakeDose(
+                        id: entry.id,
+                        timestamp: entry.timestamp,
+                        milligrams: entry.caffeineMg,
+                        sourceName: entry.foodName
+                    )
+                }
+            
+            let evaluatedCircadian = circadianEngine.plan(
+                todayWake: circadianInputs.todayWake,
+                habitualWake: circadianInputs.habitualWake,
+                sleepDebtHours: circadianInputs.sleepDebtHours,
+                deepSleepHours: snapshot.deepSleepHours,
+                remSleepHours: snapshot.remSleepHours,
+                daylightMinutes: circadianInputs.daylightMinutes,
+                recentWorkouts: mergedSessions,
+                readiness: snapshot.biomarkerAssessment,
+                wristTemperatureDeviation: snapshot.biomarkerAssessment?.wristTemperatureBaselineDeltaCelsius,
+                caffeineIntakes: relevantCaffeineIntakes,
+                recentSleepRecords: circadianInputs.recentSleepRecords,
+                targetDate: now,
+                calendar: calendar
+            )
+            
             await MainActor.run {
                 self.decision = evaluatedDecision
                 self.weeklySummary = evaluatedWeeklySummary
+                self.circadianOutcome = evaluatedCircadian
             }
         }
     }
@@ -601,6 +679,7 @@ public struct DashboardView: View {
                 protein: first.proteinGrams,
                 carbs: first.carbsGrams,
                 fat: first.fatGrams,
+                caffeineMg: first.caffeineMg,
                 category: .lunch,
                 notes: result.athleteAdvice ?? first.reasoning
             )
@@ -617,13 +696,15 @@ public struct DashboardView: View {
                 carbsGrams: item.carbsGrams,
                 fatGrams: item.fatGrams,
                 mealTypeRaw: "ai_vision",
-                notes: item.reasoning
+                notes: item.reasoning,
+                caffeineMg: item.caffeineMg
             )
             modelContext.insert(entry)
         }
         try? modelContext.save()
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
+        refreshDailyDecision()
     }
 
     private func commitSinglePreciseEntry(_ item: FoodItemPrediction, category: MealCategory) {
@@ -633,6 +714,7 @@ public struct DashboardView: View {
             existing.proteinGrams = item.proteinGrams
             existing.carbsGrams = item.carbsGrams
             existing.fatGrams = item.fatGrams
+            existing.caffeineMg = item.caffeineMg
             existing.mealTypeRaw = category.rawValue
             existing.notes = item.reasoning
             try? modelContext.save()
@@ -645,16 +727,36 @@ public struct DashboardView: View {
                 carbsGrams: item.carbsGrams,
                 fatGrams: item.fatGrams,
                 mealTypeRaw: category.rawValue,
-                notes: item.reasoning
+                notes: item.reasoning,
+                caffeineMg: item.caffeineMg
             )
             modelContext.insert(entry)
             try? modelContext.save()
         }
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
+        refreshDailyDecision()
     }
 
-    private func addQuickNutritionEntry(name: String, kcal: Double, protein: Double, carbs: Double, fat: Double, category: String) {
+    private func logQuickCaffeine(mg: Double) {
+        let entry = SDDailyNutritionEntry(
+            foodName: "快捷補充咖啡因 (\(Int(mg))mg)",
+            calories: 5,
+            proteinGrams: 0,
+            carbsGrams: 0,
+            fatGrams: 0,
+            mealTypeRaw: "水份補給",
+            notes: "快捷記錄",
+            caffeineMg: mg
+        )
+        modelContext.insert(entry)
+        try? modelContext.save()
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+        refreshDailyDecision()
+    }
+
+    private func addQuickNutritionEntry(name: String, kcal: Double, protein: Double, carbs: Double, fat: Double, category: String, caffeineMg: Double = 0.0) {
         let entry = SDDailyNutritionEntry(
             foodName: name,
             calories: kcal,
@@ -662,12 +764,14 @@ public struct DashboardView: View {
             carbsGrams: carbs,
             fatGrams: fat,
             mealTypeRaw: category,
-            notes: "快捷記錄"
+            notes: "快捷記錄",
+            caffeineMg: caffeineMg
         )
         modelContext.insert(entry)
         try? modelContext.save()
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
+        refreshDailyDecision()
     }
 
     private var currentDateString: String {
@@ -687,6 +791,7 @@ struct PreciseEntryPrefillData: Identifiable {
     let protein: Double
     let carbs: Double
     let fat: Double
+    let caffeineMg: Double
     let category: MealCategory
     let notes: String
 }

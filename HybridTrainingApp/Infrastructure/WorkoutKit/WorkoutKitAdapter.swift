@@ -23,28 +23,19 @@ public final class WorkoutKitAdapter: WorkoutKitPort, @unchecked Sendable {
     public func scheduleWorkout(workout: RecommendedWorkout, at date: Date) async throws -> WorkoutScheduleResult {
         #if canImport(WorkoutKit)
         if #available(iOS 17.0, *) {
-            do {
-                // 1. 請求 WorkoutKit 排程授權
-                try await WorkoutScheduler.shared.requestAuthorization()
-                
-                // 2. 構建 CustomWorkout
-                let customWorkout = buildCustomWorkout(from: workout)
-                let workoutPlan = WorkoutKit.WorkoutPlan(.custom(customWorkout))
-                
-                // 3. 轉換日期為 DateComponents
-                let calendar = Calendar.current
-                let dateComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-                
-                // 4. 排程至手錶
-                try await WorkoutScheduler.shared.schedule(workoutPlan, at: dateComponents)
-                return .scheduled(planId: workout.id)
-            } catch {
-                return .failed(reason: error.localizedDescription)
-            }
+            _ = await WorkoutScheduler.shared.requestAuthorization()
+            
+            let customWorkout = buildCustomWorkout(from: workout)
+            let workoutPlan = WorkoutKit.WorkoutPlan(.custom(customWorkout))
+            
+            let calendar = Calendar.current
+            let dateComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            
+            await WorkoutScheduler.shared.schedule(workoutPlan, at: dateComponents)
+            return .scheduled(planId: workout.id)
         }
         #endif
         
-        // 模擬或非支援環境之處置
         return .scheduled(planId: workout.id)
     }
     

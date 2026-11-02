@@ -21,6 +21,9 @@ public struct RawBiomarkerSampleDTO: Sendable, Hashable, Codable {
         case mindfulSession
         case dietaryEnergy
         case activeEnergy
+        case sleepingWristTemperature   // HKQuantityTypeIdentifier.appleSleepingWristTemperature (degC)
+        case walkingHeartRateAverage    // HKQuantityTypeIdentifier.walkingHeartRateAverage (bpm)
+        case heartRateRecoveryOneMinute // HKQuantityTypeIdentifier.heartRateRecoveryOneMinute (bpm)
     }
     
     public let uuid: UUID
@@ -87,6 +90,10 @@ public struct NightlyBiomarkerSample: Sendable, Equatable, Codable {
     public let nocturnalSleepingHeartRateBpm: Double?
     public let morningRestingHRBpm: Double?
     public let sleepingRespiratoryRateRpm: Double?
+    public let sleepingWristTemperatureCelsius: Double?
+    public let wristTemperatureBaselineDeltaCelsius: Double?
+    public let walkingHeartRateAverageBpm: Double?
+    public let heartRateRecoveryOneMinuteBpm: Double?
     public let confounders: Set<ConfounderTag>
 
     public init(
@@ -100,6 +107,10 @@ public struct NightlyBiomarkerSample: Sendable, Equatable, Codable {
         nocturnalSleepingHeartRateBpm: Double? = nil,
         morningRestingHRBpm: Double? = nil,
         sleepingRespiratoryRateRpm: Double? = nil,
+        sleepingWristTemperatureCelsius: Double? = nil,
+        wristTemperatureBaselineDeltaCelsius: Double? = nil,
+        walkingHeartRateAverageBpm: Double? = nil,
+        heartRateRecoveryOneMinuteBpm: Double? = nil,
         confounders: Set<ConfounderTag> = []
     ) {
         self.date = date
@@ -112,7 +123,23 @@ public struct NightlyBiomarkerSample: Sendable, Equatable, Codable {
         self.nocturnalSleepingHeartRateBpm = nocturnalSleepingHeartRateBpm ?? morningRestingHRBpm
         self.morningRestingHRBpm = morningRestingHRBpm ?? nocturnalSleepingHeartRateBpm
         self.sleepingRespiratoryRateRpm = sleepingRespiratoryRateRpm
+        self.sleepingWristTemperatureCelsius = sleepingWristTemperatureCelsius
+        self.wristTemperatureBaselineDeltaCelsius = wristTemperatureBaselineDeltaCelsius
+        self.walkingHeartRateAverageBpm = walkingHeartRateAverageBpm
+        self.heartRateRecoveryOneMinuteBpm = heartRateRecoveryOneMinuteBpm
         self.confounders = confounders
+    }
+    
+    /// 手腕夜間溫度是否處於人類生理合理界限 (30.0°C ~ 42.0°C)
+    public var hasValidWristTemperature: Bool {
+        guard let temp = sleepingWristTemperatureCelsius else { return false }
+        return temp >= 30.0 && temp <= 42.0
+    }
+    
+    /// 運動後 1 分鐘心率驟降是否顯著遲滯 (< 18 bpm)
+    public var isVagalReactivationBlunted: Bool {
+        guard let hrr = heartRateRecoveryOneMinuteBpm else { return false }
+        return hrr < 18.0
     }
 }
 
@@ -166,6 +193,7 @@ public struct ReadinessAssessment: Sendable, Codable, Equatable {
     public let confidence: MetricConfidence
     public let sleepStatus: SleepSyncStatus
     public let lnHRVZScore: Double?
+    public let wristTemperatureBaselineDeltaCelsius: Double?
     public let consecutiveElevatedRHRDays: Int
     public let consecutiveElevatedRespRateDays: Int
     public let respiratoryWarningTriggered: Bool
@@ -181,6 +209,7 @@ public struct ReadinessAssessment: Sendable, Codable, Equatable {
         confidence: MetricConfidence,
         sleepStatus: SleepSyncStatus,
         lnHRVZScore: Double?,
+        wristTemperatureBaselineDeltaCelsius: Double? = nil,
         consecutiveElevatedRHRDays: Int,
         consecutiveElevatedRespRateDays: Int,
         respiratoryWarningTriggered: Bool,
@@ -195,6 +224,7 @@ public struct ReadinessAssessment: Sendable, Codable, Equatable {
         self.confidence = confidence
         self.sleepStatus = sleepStatus
         self.lnHRVZScore = lnHRVZScore
+        self.wristTemperatureBaselineDeltaCelsius = wristTemperatureBaselineDeltaCelsius
         self.consecutiveElevatedRHRDays = consecutiveElevatedRHRDays
         self.consecutiveElevatedRespRateDays = consecutiveElevatedRespRateDays
         self.respiratoryWarningTriggered = respiratoryWarningTriggered
@@ -247,3 +277,151 @@ public struct EAEstimate: Sendable, Codable, Equatable {
         self.excludedDays = excludedDays
     }
 }
+
+// MARK: - Apple Watch Series 10 硬體賦能與韌性架構領域模型 (P0-P2)
+
+/// 容錯並發查詢結果隔離 (解決 Claude Review R1: 空集合 ≠ 無數據)
+public enum MetricResult<Value: Sendable>: Sendable {
+    case value(Value)
+    case noData           // 授權疑似 OK 但區間內無樣本
+    case unavailable      // 型別在此裝置/OS 不可用 (如 S10 之前無水溫/呼吸紊亂)
+    case failed(String)   // 查詢錯誤 (含裝置鎖定 Data Protection)
+    
+    public var value: Value? {
+        if case .value(let v) = self { return v }
+        return nil
+    }
+    
+    public var isAvailable: Bool {
+        if case .unavailable = self { return false }
+        return true
+    }
+    
+    public var isSuccess: Bool {
+        if case .value = self { return true }
+        return false
+    }
+    
+    public func map<T>(_ transform: (Value) -> T) -> MetricResult<T> {
+        switch self {
+        case .value(let v): return .value(transform(v))
+        case .noData: return .noData
+        case .unavailable: return .unavailable
+        case .failed(let msg): return .failed(msg)
+        }
+    }
+}
+
+extension MetricResult: Equatable where Value: Equatable {}
+extension MetricResult: Hashable where Value: Hashable {}
+
+/// 特徵缺失動態歸一化項目 (解決 Claude Review R2 / R3)
+public struct Feature: Sendable, Equatable, Codable {
+    public let name: String
+    public let weight: Double
+    public let normalizedScore: Double?   // nil = 缺失 / 未授權 / 冷啟動
+
+    public init(name: String, weight: Double, normalizedScore: Double?) {
+        self.name = name
+        self.weight = weight
+        self.normalizedScore = normalizedScore
+    }
+}
+
+/// 具備可用特徵與信心度標記之準備度分數
+public struct ReadinessScore: Sendable, Equatable, Codable {
+    public let score: Double
+    public let usedFeatures: Int
+    public let totalFeatures: Int
+    public var confidence: Double {
+        Double(usedFeatures) / Double(max(totalFeatures, 1))
+    }
+
+    public init(score: Double, usedFeatures: Int, totalFeatures: Int) {
+        self.score = score
+        self.usedFeatures = usedFeatures
+        self.totalFeatures = totalFeatures
+    }
+}
+
+/// 睡眠樣本雜湊指紋，防範早晨分數跳變 (解決 Claude Review R4)
+public struct SleepFingerprint: Codable, Sendable, Equatable, Hashable {
+    public let sampleUUIDsHash: Int
+    public let lastSampleArrival: Date
+
+    public init(sampleUUIDsHash: Int, lastSampleArrival: Date) {
+        self.sampleUUIDsHash = sampleUUIDsHash
+        self.lastSampleArrival = lastSampleArrival
+    }
+}
+
+public enum SleepFinalization {
+    /// 距最後一個樣本到達超過 stableWindow (預設 15 分鐘) 才視為「已結算」
+    public static func isFinalized(
+        _ fp: SleepFingerprint,
+        now: Date = Date(),
+        stableWindow: TimeInterval = 15 * 60
+    ) -> Bool {
+        now.timeIntervalSince(fp.lastSampleArrival) >= stableWindow
+    }
+}
+
+/// 個人化穩健基線 Z-Score (解決 Claude Review R5: 捨棄固定 +0.40°C)
+public enum PersonalBaseline {
+    public struct Result: Sendable, Equatable {
+        public let z: Double
+        public let nDays: Int
+        public let isReliable: Bool
+
+        public init(z: Double, nDays: Int, isReliable: Bool) {
+            self.z = z
+            self.nDays = nDays
+            self.isReliable = isReliable
+        }
+    }
+
+    /// 使用中位數 + MAD（穩健抗離群，乘數 1.4826 對齊常態分布標準差）
+    public static func robustZ(today: Double, history: [Double], minDays: Int = 14) -> Result {
+        let n = history.count
+        guard n >= minDays else { return .init(z: 0.0, nDays: n, isReliable: false) }
+        let sorted = history.sorted()
+        let median: Double
+        if n % 2 == 1 {
+            median = sorted[n / 2]
+        } else {
+            median = (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+        }
+        let diffs = history.map { abs($0 - median) }.sorted()
+        let mad: Double
+        if n % 2 == 1 {
+            mad = diffs[n / 2]
+        } else {
+            mad = (diffs[n / 2 - 1] + diffs[n / 2]) / 2.0
+        }
+        let sigma = max(1.4826 * mad, 0.05)   // 地板值避免除以近零
+        return .init(z: (today - median) / sigma, nDays: n, isReliable: true)
+    }
+}
+
+/// 多信號一致性門檻 (溫度 + HRV + RHR 至少 2 項同向偏離且持續 2 晚才減載)
+public struct StrainGate {
+    public static func shouldDeload(
+        tempZ: Double,
+        hrvZ: Double,
+        rhrZ: Double,
+        consecutiveNights: Int
+    ) -> Bool {
+        let signals = [tempZ >= 1.5, hrvZ <= -1.5, rhrZ >= 1.5].filter { $0 }.count
+        return signals >= 2 && consecutiveNights >= 2
+    }
+}
+
+/// 裝置世代更替偵測器 (解決 Claude Review R2: 換錶基線污染)
+public enum DeviceGenerationDetector {
+    /// 依據硬體版本或型號偵測裝置是否更替 (如升級至 Apple Watch Series 10)
+    public static func hasHardwareGenerationChanged(productTypes: [String?]) -> Bool {
+        let validTypes = Set(productTypes.compactMap { $0 }.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+        return validTypes.count > 1
+    }
+}
+

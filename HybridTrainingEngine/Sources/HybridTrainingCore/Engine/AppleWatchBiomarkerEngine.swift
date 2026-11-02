@@ -13,6 +13,7 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         public let respRateWarningDeltaRpm: Double
         public let lutealRHRShiftBpm: Double
         public let lutealRespShiftRpm: Double
+        public let lutealTempShiftCelsius: Double
         public let minimumNightlySDNNSamples: Int
 
         public init(
@@ -25,6 +26,7 @@ public struct AppleWatchBiomarkerEngine: Sendable {
             respRateWarningDeltaRpm: Double = 2.0,
             lutealRHRShiftBpm: Double = 2.5,
             lutealRespShiftRpm: Double = 0.5,
+            lutealTempShiftCelsius: Double = 0.35,
             minimumNightlySDNNSamples: Int = 3
         ) {
             self.baselineWindowDays = baselineWindowDays
@@ -36,6 +38,7 @@ public struct AppleWatchBiomarkerEngine: Sendable {
             self.respRateWarningDeltaRpm = respRateWarningDeltaRpm
             self.lutealRHRShiftBpm = lutealRHRShiftBpm
             self.lutealRespShiftRpm = lutealRespShiftRpm
+            self.lutealTempShiftCelsius = lutealTempShiftCelsius
             self.minimumNightlySDNNSamples = minimumNightlySDNNSamples
         }
     }
@@ -75,6 +78,7 @@ public struct AppleWatchBiomarkerEngine: Sendable {
                 confidence: .high,
                 sleepStatus: today.sleepSyncStatus,
                 lnHRVZScore: nil,
+                wristTemperatureBaselineDeltaCelsius: today.wristTemperatureBaselineDeltaCelsius,
                 consecutiveElevatedRHRDays: 0,
                 consecutiveElevatedRespRateDays: 0,
                 respiratoryWarningTriggered: true,
@@ -98,27 +102,34 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         let historicalLnHRVs = cleanHistory.compactMap { computeNightlyLnHRV(from: $0.nightlySDNNValuesMs) }
         let historicalRHRs = cleanHistory.compactMap { normalizedRHR(for: $0) }
         let historicalRespRates = cleanHistory.compactMap { normalizedRespRate(for: $0) }
+        let historicalTemps = cleanHistory.compactMap { normalizedTemp(for: $0) }
 
         // 4. 今日指標正規化
         let todayLnHRV = computeNightlyLnHRV(from: today.nightlySDNNValuesMs)
         let todayNormRHR = normalizedRHR(for: today)
-        let todayNormResp = normalizedRespRate(for: today)
+        let todayNormTemp = normalizedTemp(for: today)
 
-        // 5. 具備物理底噪保護 (σ_min) 之穩健 Z-Score
+        // 5. 具備物理底噪保護 (σ_min) 之穩健 Z-Score (使用 PersonalBaseline.robustZ)
         let lnHRVZScore: Double? = {
-            guard let current = todayLnHRV,
-                  !historicalLnHRVs.isEmpty,
-                  let med = Self.median(of: historicalLnHRVs),
-                  let mad = Self.mad(of: historicalLnHRVs, median: med) else {
-                return nil
-            }
-            let scale = max(config.madConsistencyConstant * mad, config.lnHRVNoiseFloor)
-            return (current - med) / scale
+            guard let current = todayLnHRV, !historicalLnHRVs.isEmpty else { return nil }
+            let res = PersonalBaseline.robustZ(today: current, history: historicalLnHRVs, minDays: config.minimumBaselineSamples)
+            return res.isReliable ? res.z : nil
+        }()
+
+        let tempZScore: Double? = {
+            guard let current = todayNormTemp, !historicalTemps.isEmpty else { return nil }
+            let res = PersonalBaseline.robustZ(today: current, history: historicalTemps, minDays: 7)
+            return res.isReliable ? res.z : nil
         }()
 
         // 6. 連續 2 日 RHR 與呼吸率噪聲過濾檢查
         let rhrMedian = Self.median(of: historicalRHRs)
         let respMedian = Self.median(of: historicalRespRates)
+        let rhrZScore: Double? = {
+            guard let current = todayNormRHR, !historicalRHRs.isEmpty else { return nil }
+            let res = PersonalBaseline.robustZ(today: current, history: historicalRHRs, minDays: config.minimumBaselineSamples)
+            return res.isReliable ? res.z : nil
+        }()
 
         let sortedRecent = (history28d.sorted { $0.date < $1.date }.suffix(3)) + [today]
         let consecutiveRHRDays = countConsecutiveElevatedDays(
@@ -137,15 +148,32 @@ public struct AppleWatchBiomarkerEngine: Sendable {
 
         let respWarning = consecutiveRespDays >= 2 && (consecutiveRHRDays >= 1 || (todayNormRHR ?? 0) > (rhrMedian ?? 999) + config.rhrNoiseFloorBpm)
 
-        // 7. 自主神經狀態判定
+        // 7. StrainGate 多信號一致性門檻 (溫度 + HRV + RHR 至少 2 項同向偏離且持續 >= 2 晚才觸發減載)
+        let consecutiveNights = max(consecutiveRHRDays, consecutiveRespDays)
+        let shouldDeloadStrainGate = StrainGate.shouldDeload(
+            tempZ: tempZScore ?? 0.0,
+            hrvZ: lnHRVZScore ?? 0.0,
+            rhrZ: rhrZScore ?? 0.0,
+            consecutiveNights: consecutiveNights
+        )
+
+        // 8. 自主神經狀態判定 (納入 HRR 1-min 與 步行心率 破除假性副交感亢進)
         let autonomic: AutonomicState
         if today.confounders.contains(.alcohol) {
             autonomic = .metabolicallyConfounded
         } else if let z = lnHRVZScore {
-            if z < -1.5 {
+            let isVagalBlunted = today.isVagalReactivationBlunted
+            let isWalkingHRHigh: Bool = {
+                guard let todayWHR = today.walkingHeartRateAverageBpm else { return false }
+                let historyWHRs = cleanHistory.compactMap { $0.walkingHeartRateAverageBpm }
+                guard let medWHR = Self.median(of: historyWHRs) else { return false }
+                return todayWHR >= (medWHR + 5.0)
+            }()
+            
+            if z < -1.5 || isWalkingHRHigh {
                 autonomic = .sympatheticOverload
-            } else if z > 2.0 && (consecutiveRHRDays >= 1 || consecutiveRespDays >= 1) {
-                // 副交感假性過度亢進 (伴隨心率或呼吸率異常)
+            } else if z > 1.8 && (consecutiveRHRDays >= 1 || consecutiveRespDays >= 1 || isVagalBlunted) {
+                // 副交感假性過度亢進 (伴隨心率、呼吸率異常或 HRR 驟降遲滯)
                 autonomic = .parasympatheticHyperactivity
             } else {
                 autonomic = .balanced
@@ -154,12 +182,14 @@ public struct AppleWatchBiomarkerEngine: Sendable {
             autonomic = .balanced
         }
 
-        // 8. 非線性綜合評估分數 (0~100)
+        // 9. 非線性綜合評估分數 (0~100)
         let (score, zone) = calculateScoreAndZone(
             lnHRVZScore: lnHRVZScore,
             consecutiveRHRDays: consecutiveRHRDays,
             consecutiveRespDays: consecutiveRespDays,
             respWarning: respWarning,
+            shouldDeloadStrainGate: shouldDeloadStrainGate,
+            tempZScore: tempZScore,
             today: today,
             autonomic: autonomic
         )
@@ -180,6 +210,14 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         if respWarning {
             diagnostics.append("睡眠呼吸率與靜息心率出現同步抬升，請注意身體免疫與修復狀態。")
         }
+        if today.isVagalReactivationBlunted {
+            diagnostics.append("運動後一分鐘心率恢復遲緩 (<18 bpm)，提示副交感神經迷走張力尚未完全復原，建議降低今日訓練強度。")
+        }
+        if shouldDeloadStrainGate {
+            diagnostics.append("夜間手腕溫度與心率指標出現連續多晚同向偏離個人基準，可能與疲勞累積、環境應激或身體修復負擔增加有關，系統已自動安排防衛減載。")
+        } else if let tempZ = tempZScore, tempZ >= 1.8 {
+            diagnostics.append("夜間手腕溫度相對個人基準偏高 (Z=\(String(format: "%.1f", tempZ)))，但尚未達多信號一致性減載門檻，持續觀察。")
+        }
         if today.sleepSyncStatus == .durationOnly {
             diagnostics.append("Apple Watch 睡眠分期同步中，目前先以睡眠總時數給出基礎評估。")
         }
@@ -192,6 +230,7 @@ public struct AppleWatchBiomarkerEngine: Sendable {
             confidence: confidence,
             sleepStatus: today.sleepSyncStatus,
             lnHRVZScore: lnHRVZScore,
+            wristTemperatureBaselineDeltaCelsius: today.wristTemperatureBaselineDeltaCelsius,
             consecutiveElevatedRHRDays: consecutiveRHRDays,
             consecutiveElevatedRespRateDays: consecutiveRespDays,
             respiratoryWarningTriggered: respWarning,
@@ -212,6 +251,11 @@ public struct AppleWatchBiomarkerEngine: Sendable {
     private func normalizedRespRate(for sample: NightlyBiomarkerSample) -> Double? {
         guard let resp = sample.sleepingRespiratoryRateRpm else { return nil }
         return sample.confounders.contains(.lutealPhase) ? (resp - config.lutealRespShiftRpm) : resp
+    }
+
+    private func normalizedTemp(for sample: NightlyBiomarkerSample) -> Double? {
+        guard let temp = sample.wristTemperatureBaselineDeltaCelsius ?? sample.sleepingWristTemperatureCelsius.map({ $0 - 36.5 }) else { return nil }
+        return sample.confounders.contains(.lutealPhase) ? (temp - config.lutealTempShiftCelsius) : temp
     }
 
     private func countConsecutiveElevatedDays(
@@ -235,6 +279,8 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         consecutiveRHRDays: Int,
         consecutiveRespDays: Int,
         respWarning: Bool,
+        shouldDeloadStrainGate: Bool,
+        tempZScore: Double?,
         today: NightlyBiomarkerSample,
         autonomic: AutonomicState
     ) -> (Int, ReadinessZone) {
@@ -279,15 +325,33 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         if autonomic == .parasympatheticHyperactivity {
             baseScore -= 12.0
         }
+        
+        // 溫度偏離扣分 (結合 StrainGate 與單夜顯著升溫防衛)
+        if shouldDeloadStrainGate {
+            baseScore -= 20.0
+        } else if let tempZ = tempZScore {
+            if tempZ >= 3.0 {
+                // 單夜顯著偏高 (Z >= 3.0 或偏差 >= 0.5°C) 提示感染前兆或外周強應激
+                baseScore -= 12.0
+            } else if tempZ >= 1.8 {
+                // 輕度偏高但未達多信號一致性門檻
+                baseScore -= 5.0
+            }
+        }
+        
+        // HRR 1-min 迷走神經遲滯扣分
+        if today.isVagalReactivationBlunted {
+            baseScore -= 8.0
+        }
 
         let clampedScore = max(10, min(98, Int(baseScore.rounded())))
 
         let zone: ReadinessZone
-        if clampedScore >= 80 && consecutiveRHRDays < 2 {
+        if clampedScore >= 80 && consecutiveRHRDays < 2 && !shouldDeloadStrainGate {
             zone = .ready
-        } else if clampedScore >= 60 && consecutiveRHRDays < 2 {
+        } else if clampedScore >= 60 && consecutiveRHRDays < 2 && !shouldDeloadStrainGate {
             zone = .steady
-        } else if clampedScore >= 35 || consecutiveRHRDays >= 2 {
+        } else if clampedScore >= 35 || consecutiveRHRDays >= 2 || shouldDeloadStrainGate {
             zone = .overreached
         } else {
             zone = .protectiveLockdown
@@ -313,5 +377,16 @@ public struct AppleWatchBiomarkerEngine: Sendable {
         guard !values.isEmpty else { return nil }
         let absoluteDeviations = values.map { abs($0 - median) }
         return self.median(of: absoluteDeviations)
+    }
+
+    /// 特徵缺失動態權重重新歸一化與信心度計算 (Claude Review §4.5)
+    /// 當使用者部分授權被拒或傳感器資料缺失時，依可用特徵自適應計算分數，而非把缺失當作 0 或崩潰。
+    public static func computeReadiness(_ features: [Feature], minFeatures: Int = 3) -> ReadinessScore? {
+        let available = features.compactMap { f in f.normalizedScore.map { (f.weight, $0) } }
+        guard available.count >= minFeatures else { return nil }
+        let wSum = available.reduce(0.0) { $0 + $1.0 }
+        guard wSum > 0.0 else { return nil }
+        let s = available.reduce(0.0) { $0 + $1.0 * $1.1 } / wSum
+        return ReadinessScore(score: s, usedFeatures: available.count, totalFeatures: features.count)
     }
 }

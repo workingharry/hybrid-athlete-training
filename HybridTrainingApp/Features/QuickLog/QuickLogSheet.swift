@@ -33,7 +33,7 @@ public struct QuickLogSheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 18) {
@@ -60,8 +60,8 @@ public struct QuickLogSheet: View {
 
                         if let saveErrorMessage {
                             Text(saveErrorMessage)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(hex: "F85149"))
+                                .font(HybridTheme.Typography.subheadline.weight(.medium))
+                                .foregroundColor(HybridTheme.dangerRed)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -81,7 +81,7 @@ public struct QuickLogSheet: View {
                     Button("取消") {
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .foregroundColor(HybridTheme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -91,8 +91,8 @@ public struct QuickLogSheet: View {
                             Image(systemName: "folder.fill")
                             Text("常用課表")
                         }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(hex: "58A6FF"))
+                        .font(HybridTheme.Typography.subheadline.weight(.semibold))
+                        .foregroundColor(HybridTheme.accentBlue)
                     }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -100,8 +100,8 @@ public struct QuickLogSheet: View {
                     Button("完成") {
                         focusedWeightExerciseName = nil
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.accentBlue)
                 }
             }
             .sheet(isPresented: $isShowingRoutineLibrary) {
@@ -135,16 +135,16 @@ public struct QuickLogSheet: View {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .bold))
                 Text(title)
-                    .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                    .font(HybridTheme.Typography.badge.weight(isSelected ? .bold : .medium))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "161B22"))
-            .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "8B949E"))
-            .cornerRadius(8)
+            .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
+            .foregroundColor(isSelected ? .white : HybridTheme.textSecondary)
+            .cornerRadius(10)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color(hex: "58A6FF") : Color(hex: "30363D"), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? HybridTheme.accentBlue : HybridTheme.cardBorder, lineWidth: 0.8)
             )
         }
         .buttonStyle(.plain)
@@ -156,11 +156,11 @@ public struct QuickLogSheet: View {
         HStack(spacing: 8) {
             Image(systemName: "clock.fill")
                 .font(.system(size: 12))
-                .foregroundColor(Color(hex: "8B949E"))
+                .foregroundColor(HybridTheme.textSecondary)
 
             Text("訓練時段")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(hex: "8B949E"))
+                .font(HybridTheme.Typography.subheadline.weight(.semibold))
+                .foregroundColor(HybridTheme.textSecondary)
 
             Spacer()
 
@@ -173,15 +173,15 @@ public struct QuickLogSheet: View {
                         }
                     } label: {
                         Text(offset.displayName)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(HybridTheme.Typography.badge.weight(.semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(isSelected ? Color(hex: "58A6FF").opacity(0.2) : Color(hex: "161B22"))
-                            .foregroundColor(isSelected ? Color(hex: "58A6FF") : Color(hex: "8B949E"))
-                            .cornerRadius(6)
+                            .background(isSelected ? HybridTheme.accentBlue.opacity(0.18) : HybridTheme.surfaceElevated)
+                            .foregroundColor(isSelected ? HybridTheme.accentBlue : HybridTheme.textSecondary)
+                            .cornerRadius(8)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(isSelected ? Color(hex: "58A6FF") : Color(hex: "30363D"), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isSelected ? HybridTheme.accentBlue : HybridTheme.cardBorder, lineWidth: 0.8)
                             )
                     }
                     .buttonStyle(.plain)
@@ -196,12 +196,12 @@ public struct QuickLogSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("1. 訓練部位 (可複選)")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text("已選 \(draft.selectedPatterns.count) 部位")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .font(HybridTheme.Typography.badge.weight(.medium))
+                    .foregroundColor(HybridTheme.accentBlue)
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
@@ -221,15 +221,15 @@ public struct QuickLogSheet: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(HybridTheme.Typography.badge.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "161B22"))
-                .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
-                .cornerRadius(8)
+                .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
+                .foregroundColor(isSelected ? .white : HybridTheme.textPrimary)
+                .cornerRadius(10)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Color(hex: "58A6FF") : Color(hex: "30363D"), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isSelected ? HybridTheme.accentBlue : HybridTheme.cardBorder, lineWidth: 0.8)
                 )
         }
         .buttonStyle(.plain)
@@ -241,13 +241,13 @@ public struct QuickLogSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("2. FITT 動作明細 (點擊晶片帶入預設組數，可選填)")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 if !draft.selectedExercises.isEmpty {
                     Text("\(draft.selectedExercises.count) 動作 · \(draft.totalCompletedSets) 組")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(hex: "3FB950"))
+                        .font(HybridTheme.Typography.badge.weight(.bold))
+                        .foregroundColor(HybridTheme.successGreen)
                 }
             }
 
@@ -256,8 +256,8 @@ public struct QuickLogSheet: View {
                 ForEach(draft.availableExercisesByPattern, id: \.pattern) { group in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(patternLabel(for: group.pattern))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .font(HybridTheme.Typography.chartAxis.weight(.semibold))
+                            .foregroundColor(HybridTheme.textSecondary)
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
@@ -271,11 +271,11 @@ public struct QuickLogSheet: View {
                 }
             }
             .padding(10)
-            .background(Color(hex: "161B22").opacity(0.6))
+            .background(HybridTheme.surfaceElevated.opacity(0.5))
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color(hex: "30363D"), lineWidth: 1)
+                    .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
             )
 
             // 已選取動作的 FITT 快速編輯卡片清單 (組數/次數步進鈕 + 重量選填)
@@ -301,22 +301,22 @@ public struct QuickLogSheet: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "plus.circle")
                     .font(.system(size: 11, weight: .bold))
                 Text(exercise.name)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(HybridTheme.Typography.badge.weight(.semibold))
                 Text(exercise.equipment.displayName)
-                    .font(.system(size: 10, weight: .regular))
+                    .font(HybridTheme.Typography.chartAxis)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(isSelected ? Color(hex: "090C10").opacity(0.25) : Color(hex: "090C10"))
+                    .background(HybridTheme.surfaceElevated)
                     .cornerRadius(4)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(isSelected ? Color(hex: "3FB950") : Color(hex: "161B22"))
-            .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
+            .background(isSelected ? HybridTheme.successGreen : HybridTheme.cardBackground)
+            .foregroundColor(isSelected ? .white : HybridTheme.textPrimary)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color(hex: "3FB950") : Color(hex: "30363D"), lineWidth: 1)
+                    .stroke(isSelected ? HybridTheme.successGreen : HybridTheme.cardBorder, lineWidth: 0.8)
             )
         }
         .buttonStyle(.plain)
@@ -330,28 +330,28 @@ public struct QuickLogSheet: View {
             // 第一列：動作名稱、器材標籤、FITT 即時摘要、技術提示按鈕、移除鈕
             HStack(spacing: 6) {
                 Text(detail.exerciseName)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                    .foregroundColor(HybridTheme.textPrimary)
 
                 Text(detail.equipment.displayName)
-                    .font(.system(size: 9, weight: .bold))
+                    .font(HybridTheme.Typography.badge)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 2)
-                    .background(Color(hex: "21262D"))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .background(HybridTheme.surfaceElevated)
+                    .foregroundColor(HybridTheme.accentBlue)
                     .cornerRadius(4)
 
                 if let matchedExercise {
                     Text(matchedExercise.defaultRepRange)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .font(HybridTheme.Typography.chartAxis)
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
 
                 Spacer()
 
                 Text(detail.summaryDescription)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .font(HybridTheme.Typography.badge.weight(.bold))
+                    .foregroundColor(HybridTheme.accentBlue)
 
                 if matchedExercise != nil {
                     Button {
@@ -361,7 +361,7 @@ public struct QuickLogSheet: View {
                     } label: {
                         Image(systemName: isShowingCue ? "info.circle.fill" : "info.circle")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "8B949E"))
+                            .foregroundColor(HybridTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -375,15 +375,15 @@ public struct QuickLogSheet: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
 
             if isShowingCue, let cue = matchedExercise?.techniqueCues {
                 Text("提示：\(cue)")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.chartAxis)
+                    .foregroundColor(HybridTheme.energyOrange)
                     .padding(.vertical, 2)
             }
 
@@ -424,36 +424,36 @@ public struct QuickLogSheet: View {
                     )
                     .keyboardType(.decimalPad)
                     .focused($focusedWeightExerciseName, equals: detail.exerciseName)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.badge.weight(.bold))
+                    .foregroundColor(HybridTheme.textPrimary)
                     .multilineTextAlignment(.trailing)
-                    .frame(width: 36)
+                    .frame(width: 38)
 
                     Text("kg")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .font(HybridTheme.Typography.chartAxis)
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 6)
-                .background(Color(hex: "090C10"))
+                .background(HybridTheme.surfaceElevated)
                 .cornerRadius(6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(
                             focusedWeightExerciseName == detail.exerciseName
-                                ? Color(hex: "58A6FF")
-                                : Color(hex: "30363D"),
-                            lineWidth: 1
+                                ? HybridTheme.accentBlue
+                                : HybridTheme.cardBorder,
+                            lineWidth: 0.8
                         )
                 )
             }
         }
         .padding(10)
-        .background(Color(hex: "161B22"))
-        .cornerRadius(8)
+        .background(HybridTheme.cardBackground)
+        .cornerRadius(10)
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
         )
     }
 
@@ -468,34 +468,34 @@ public struct QuickLogSheet: View {
                 Image(systemName: "minus")
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 24, height: 24)
-                    .background(Color(hex: "090C10"))
-                    .foregroundColor(Color(hex: "58A6FF"))
-                    .cornerRadius(5)
+                    .background(HybridTheme.surfaceElevated)
+                    .foregroundColor(HybridTheme.accentBlue)
+                    .cornerRadius(6)
             }
             .buttonStyle(.plain)
 
             Text(valueText)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.white)
+                .font(HybridTheme.Typography.badge.weight(.bold))
+                .foregroundColor(HybridTheme.textPrimary)
                 .frame(minWidth: 36)
 
             Button(action: onIncrement) {
                 Image(systemName: "plus")
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 24, height: 24)
-                    .background(Color(hex: "090C10"))
-                    .foregroundColor(Color(hex: "58A6FF"))
-                    .cornerRadius(5)
+                    .background(HybridTheme.surfaceElevated)
+                    .foregroundColor(HybridTheme.accentBlue)
+                    .cornerRadius(6)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 3)
-        .background(Color(hex: "090C10").opacity(0.6))
-        .cornerRadius(6)
+        .background(HybridTheme.surfaceElevated.opacity(0.5))
+        .cornerRadius(8)
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label) \(valueText)")
@@ -507,12 +507,12 @@ public struct QuickLogSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("3. 訓練時長")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text("\(Int(draft.durationMinutes)) 分鐘")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.textPrimary)
             }
 
             HStack(spacing: 12) {
@@ -520,7 +520,7 @@ public struct QuickLogSheet: View {
                     draft.adjustDuration(by: -5.0)
                 }
                 .buttonStyle(BorderedButtonStyle())
-                .tint(Color(hex: "58A6FF"))
+                .tint(HybridTheme.accentBlue)
 
                 Slider(
                     value: Binding(
@@ -530,13 +530,13 @@ public struct QuickLogSheet: View {
                     in: QuickLogDraft.minDurationMinutes...QuickLogDraft.maxDurationMinutes,
                     step: 5
                 )
-                .tint(Color(hex: "58A6FF"))
+                .tint(HybridTheme.accentBlue)
 
                 Button("+ 5m") {
                     draft.adjustDuration(by: 5.0)
                 }
                 .buttonStyle(BorderedButtonStyle())
-                .tint(Color(hex: "58A6FF"))
+                .tint(HybridTheme.accentBlue)
             }
         }
     }
@@ -547,15 +547,15 @@ public struct QuickLogSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("4. Foster sRPE 自覺強度")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text(String(format: "%.1f", draft.sRPE))
-                    .font(.system(size: 18, weight: .bold))
+                    .font(HybridTheme.Typography.metricHero)
                     .foregroundColor(rpeColor)
                 Text("(\(rpeDescription))")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline)
+                    .foregroundColor(HybridTheme.textSecondary)
             }
 
             Slider(
@@ -576,35 +576,35 @@ public struct QuickLogSheet: View {
         VStack(spacing: 8) {
             HStack {
                 Text("累計肌力負荷貨幣:")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "8B949E"))
+                    .font(HybridTheme.Typography.subheadline)
+                    .foregroundColor(HybridTheme.textSecondary)
                 Spacer()
                 Text("\(Int(draft.calculatedLoadAU)) AU")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.accentBlue)
             }
 
             if !draft.selectedExercises.isEmpty {
                 Divider()
-                    .background(Color(hex: "30363D"))
+                    .background(HybridTheme.cardBorder)
 
                 HStack {
                     Text("FITT 執行統計:")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .font(HybridTheme.Typography.subheadline)
+                        .foregroundColor(HybridTheme.textSecondary)
                     Spacer()
                     Text(volumeSummaryText)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(hex: "3FB950"))
+                        .font(HybridTheme.Typography.badge.weight(.semibold))
+                        .foregroundColor(HybridTheme.successGreen)
                 }
             }
         }
-        .padding(12)
-        .background(Color(hex: "161B22"))
-        .cornerRadius(8)
+        .padding(14)
+        .background(HybridTheme.cardBackground)
+        .cornerRadius(12)
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(hex: "30363D"), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
         )
     }
 
@@ -613,23 +613,23 @@ public struct QuickLogSheet: View {
     private var bottomSaveBar: some View {
         VStack(spacing: 0) {
             Divider()
-                .background(Color(hex: "30363D"))
+                .background(HybridTheme.cardBorder)
             Button(action: saveSession) {
                 HStack(spacing: 8) {
                     Image(systemName: "bolt.shield.fill")
                         .font(.system(size: 15, weight: .bold))
                     Text("完成記錄 (寫入本機 SwiftData)")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(HybridTheme.Typography.cardTitle)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color(hex: "3FB950"))
-                .foregroundColor(Color(hex: "090C10"))
-                .cornerRadius(12)
+                .background(HybridTheme.successGreen)
+                .foregroundColor(.white)
+                .cornerRadius(14)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-            .background(Color(hex: "090C10").opacity(0.95))
+            .background(HybridTheme.cardBackground)
         }
     }
 
@@ -665,9 +665,9 @@ public struct QuickLogSheet: View {
     }
 
     private var rpeColor: Color {
-        if draft.sRPE <= 4.0 { return Color(hex: "3FB950") }
-        if draft.sRPE <= 7.0 { return Color(hex: "E3B341") }
-        return Color(hex: "F85149")
+        if draft.sRPE <= 4.0 { return HybridTheme.successGreen }
+        if draft.sRPE <= 7.0 { return HybridTheme.energyOrange }
+        return HybridTheme.dangerRed
     }
 
     private var rpeDescription: String {

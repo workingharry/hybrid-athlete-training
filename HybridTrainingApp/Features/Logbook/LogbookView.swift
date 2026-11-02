@@ -229,13 +229,13 @@ public struct LogbookView: View {
 
     private func sessionColor(_ discipline: TrainingDiscipline) -> Color {
         switch discipline {
-        case .running: return Color(hex: "0A84FF")
-        case .cycling: return Color(hex: "FF9F0A")
-        case .swimming: return Color(hex: "30D158")
-        case .rowing: return Color(hex: "BF5AF2")
-        case .strength: return Color(hex: "FF453A")
-        case .mobility: return Color(hex: "30D158")
-        case .rest: return Color(hex: "8E8E93")
+        case .running: return HybridTheme.accentBlue
+        case .cycling: return HybridTheme.energyOrange
+        case .swimming: return HybridTheme.healthTeal
+        case .rowing: return HybridTheme.activityPurple
+        case .strength: return HybridTheme.dangerRed
+        case .mobility: return HybridTheme.successGreen
+        case .rest: return HybridTheme.textSecondary
         }
     }
 

@@ -27,32 +27,32 @@ public struct RoutineEditorSheet: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
                         // 1. 課表基本資訊
                         VStack(alignment: .leading, spacing: 8) {
                             Text("課表名稱")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             TextField("例如：週三下肢深蹲與爆發強化", text: $routineName)
                                 .padding(12)
-                                .background(Color(hex: "161B22"))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                                .background(HybridTheme.cardBackground)
+                                .foregroundColor(HybridTheme.textPrimary)
+                                .cornerRadius(10)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(hex: "30363D"), lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
                                 )
                         }
 
                         // 2. 訓練類型與目標模式
                         VStack(alignment: .leading, spacing: 8) {
                             Text("涵蓋動作模式 (可複選)")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                                 patternButton(title: "上肢推 (Push)", pattern: .upperPush)
@@ -66,8 +66,8 @@ public struct RoutineEditorSheet: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text("動作排程清單 (\(items.count) 個動作)")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                    .foregroundColor(HybridTheme.textSecondary)
 
                                 Spacer()
 
@@ -78,19 +78,23 @@ public struct RoutineEditorSheet: View {
                                         Image(systemName: "plus.circle.fill")
                                         Text("添加動作")
                                     }
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .font(HybridTheme.Typography.badge.weight(.bold))
+                                    .foregroundColor(HybridTheme.accentBlue)
                                 }
                             }
 
                             if items.isEmpty {
                                 Text("尚未添加動作，點擊右上角「添加動作」從動作庫挑選。")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color(hex: "8B949E"))
+                                    .font(HybridTheme.Typography.subheadline)
+                                    .foregroundColor(HybridTheme.textSecondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(14)
-                                    .background(Color(hex: "161B22"))
-                                    .cornerRadius(8)
+                                    .background(HybridTheme.cardBackground)
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                                    )
                             } else {
                                 ForEach(items.indices, id: \.self) { idx in
                                     exerciseItemCard(index: idx)
@@ -102,45 +106,53 @@ public struct RoutineEditorSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("預估時長：\(Int(estimatedMinutes)) 分鐘")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Slider(value: $estimatedMinutes, in: 20...120, step: 5)
                                     .frame(width: 160)
-                                    .tint(Color(hex: "58A6FF"))
+                                    .tint(HybridTheme.accentBlue)
                             }
 
                             HStack {
                                 Text("基準強度：\(String(format: "%.1f", defaultSRPE)) RPE")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                    .foregroundColor(HybridTheme.textPrimary)
                                 Spacer()
                                 Slider(value: $defaultSRPE, in: 4.0...10.0, step: 0.5)
                                     .frame(width: 160)
-                                    .tint(Color(hex: "F0883E"))
+                                    .tint(HybridTheme.energyOrange)
                             }
                         }
-                        .padding(12)
-                        .background(Color(hex: "161B22"))
-                        .cornerRadius(8)
+                        .padding(14)
+                        .background(HybridTheme.cardBackground)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                        )
 
                         // 5. 課表備註
                         VStack(alignment: .leading, spacing: 6) {
                             Text("教練提示與備註 (選填)")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "8B949E"))
+                                .font(HybridTheme.Typography.subheadline.weight(.bold))
+                                .foregroundColor(HybridTheme.textSecondary)
 
                             TextField("例如：注意第二動離心控制3秒，維持骨盆正位", text: $notes)
                                 .padding(12)
-                                .background(Color(hex: "161B22"))
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
+                                .background(HybridTheme.cardBackground)
+                                .foregroundColor(HybridTheme.textPrimary)
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+                                )
                         }
 
                         if let error = validationErrorMessage {
                             Text(error)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(Color(hex: "F85149"))
+                                .font(HybridTheme.Typography.badge.weight(.semibold))
+                                .foregroundColor(HybridTheme.dangerRed)
                         }
                     }
                     .padding(16)
@@ -152,12 +164,12 @@ public struct RoutineEditorSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundColor(Color(hex: "8B949E"))
+                        .foregroundColor(HybridTheme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("儲存課表") { saveRoutine() }
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "3FB950"))
+                        .font(HybridTheme.Typography.cardTitle)
+                        .foregroundColor(HybridTheme.successGreen)
                 }
             }
             .sheet(isPresented: $isShowingExercisePicker) {
@@ -178,12 +190,12 @@ public struct RoutineEditorSheet: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(HybridTheme.Typography.badge.weight(.semibold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(isSelected ? Color(hex: "58A6FF") : Color(hex: "161B22"))
-                .foregroundColor(isSelected ? Color(hex: "090C10") : Color(hex: "C9D1D9"))
-                .cornerRadius(6)
+                .padding(.vertical, 10)
+                .background(isSelected ? HybridTheme.accentBlue : HybridTheme.surfaceElevated)
+                .foregroundColor(isSelected ? .white : HybridTheme.textPrimary)
+                .cornerRadius(8)
         }
     }
 
@@ -192,15 +204,15 @@ public struct RoutineEditorSheet: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(item.exerciseName)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(HybridTheme.Typography.cardTitle)
+                    .foregroundColor(HybridTheme.textPrimary)
 
                 Text(item.equipment.displayName)
-                    .font(.system(size: 9, weight: .bold))
-                    .padding(.horizontal, 4)
+                    .font(HybridTheme.Typography.badge)
+                    .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(hex: "21262D"))
-                    .foregroundColor(Color(hex: "58A6FF"))
+                    .background(HybridTheme.accentBlue.opacity(0.15))
+                    .foregroundColor(HybridTheme.accentBlue)
                     .cornerRadius(4)
 
                 Spacer()
@@ -209,8 +221,8 @@ public struct RoutineEditorSheet: View {
                     items.remove(at: index)
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "F85149"))
+                        .font(.system(size: 13))
+                        .foregroundColor(HybridTheme.dangerRed)
                 }
             }
 
@@ -229,41 +241,45 @@ public struct RoutineEditorSheet: View {
                 ))
             }
         }
-        .padding(10)
-        .background(Color(hex: "161B22"))
-        .cornerRadius(8)
+        .padding(12)
+        .background(HybridTheme.cardBackground)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(HybridTheme.cardBorder, lineWidth: 0.8)
+        )
     }
 
     private func stepperControl(label: String, step: Int = 1, value: Binding<Int>) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Button("-") { value.wrappedValue -= step }
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(Color(hex: "58A6FF"))
-                .frame(width: 20, height: 20)
-                .background(Color(hex: "090C10"))
-                .cornerRadius(4)
+                .font(HybridTheme.Typography.badge.weight(.bold))
+                .foregroundColor(HybridTheme.accentBlue)
+                .frame(width: 24, height: 24)
+                .background(HybridTheme.surfaceElevated)
+                .cornerRadius(6)
 
             Text("\(value.wrappedValue)\(label)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.white)
-                .frame(minWidth: 32)
+                .font(HybridTheme.Typography.chartAxis.weight(.bold))
+                .foregroundColor(HybridTheme.textPrimary)
+                .frame(minWidth: 34)
 
             Button("+") { value.wrappedValue += step }
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(Color(hex: "58A6FF"))
-                .frame(width: 20, height: 20)
-                .background(Color(hex: "090C10"))
-                .cornerRadius(4)
+                .font(HybridTheme.Typography.badge.weight(.bold))
+                .foregroundColor(HybridTheme.accentBlue)
+                .frame(width: 24, height: 24)
+                .background(HybridTheme.surfaceElevated)
+                .cornerRadius(6)
         }
-        .padding(4)
-        .background(Color(hex: "090C10"))
-        .cornerRadius(6)
+        .padding(5)
+        .background(HybridTheme.surfaceElevated.opacity(0.5))
+        .cornerRadius(8)
     }
 
     private var exercisePickerSheet: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "090C10").ignoresSafeArea()
+                HybridTheme.background.ignoresSafeArea()
                 List {
                     ForEach(ResistanceExerciseBank.allExercises) { exercise in
                         Button {
@@ -281,21 +297,21 @@ public struct RoutineEditorSheet: View {
                             isShowingExercisePicker = false
                         } label: {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
+                                VStack(alignment: .leading, spacing: 3) {
                                     Text(exercise.name)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
+                                        .font(HybridTheme.Typography.cardTitle)
+                                        .foregroundColor(HybridTheme.textPrimary)
                                     Text(exercise.englishName)
-                                        .font(.system(size: 11))
-                                        .foregroundColor(Color(hex: "8B949E"))
+                                        .font(HybridTheme.Typography.subheadline)
+                                        .foregroundColor(HybridTheme.textSecondary)
                                 }
                                 Spacer()
                                 Text(exercise.equipment.displayName)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(Color(hex: "58A6FF"))
+                                    .font(HybridTheme.Typography.badge)
+                                    .foregroundColor(HybridTheme.accentBlue)
                             }
                         }
-                        .listRowBackground(Color(hex: "161B22"))
+                        .listRowBackground(HybridTheme.cardBackground)
                     }
                 }
                 .scrollContentBackground(.hidden)

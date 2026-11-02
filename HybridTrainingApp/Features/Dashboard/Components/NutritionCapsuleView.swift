@@ -49,17 +49,27 @@ public struct NutritionCapsuleView: View {
         return min(1.0, max(0.0, model.consumedKcal / model.targetKcal))
     }
     
+    private var phaseColor: Color {
+        switch phase {
+        case .morningEmpty: return HybridTheme.healthTeal
+        case .preWorkout: return HybridTheme.energyOrange
+        case .postWorkoutGoldenWindow: return HybridTheme.successGreen
+        case .activeFueling: return HybridTheme.accentBlue
+        case .activeRestDay: return HybridTheme.accentBlue.opacity(0.8)
+        }
+    }
+    
     public var body: some View {
         Button(action: onOpenDetail) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 // 1. 頂部狀態列與快速加點選單
                 HStack(alignment: .center) {
                     HStack(spacing: 6) {
                         Image(systemName: phase.iconName)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(hex: phase.hexColor))
+                            .font(HybridTheme.Typography.badge)
+                            .foregroundColor(phaseColor)
                         Text(phase.title)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(HybridTheme.Typography.badge.weight(.bold))
                             .foregroundColor(HybridTheme.textPrimary)
                     }
                     
@@ -68,9 +78,9 @@ public struct NutritionCapsuleView: View {
                     // 相機 AI 辨識按鈕
                     Button(action: onTriggerCamera) {
                         Image(systemName: "camera.viewfinder")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(HybridTheme.accentBlue)
-                            .frame(width: 26, height: 26)
+                            .frame(width: 30, height: 30)
                             .background(HybridTheme.surfaceElevated)
                             .clipShape(Circle())
                     }
@@ -112,9 +122,9 @@ public struct NutritionCapsuleView: View {
                         }
                     } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(HybridTheme.textPrimary)
-                            .frame(width: 24, height: 24)
+                            .frame(width: 28, height: 28)
                             .background(HybridTheme.surfaceElevated)
                             .clipShape(Circle())
                     }
@@ -124,17 +134,17 @@ public struct NutritionCapsuleView: View {
                 // 2. 蛋白質 (主) 與 熱量 (次) 雙軌指標
                 HStack(spacing: 20) {
                     // 蛋白質
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(isUnlogged ? "—" : "\(Int(model.proteinGrams))")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(HybridTheme.Typography.metricMedium)
                                 .foregroundColor(HybridTheme.textPrimary)
                             Text("/ \(Int(model.targetProteinGrams))g")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(HybridTheme.Typography.badge.weight(.semibold))
                                 .foregroundColor(HybridTheme.textSecondary)
                             Spacer()
                             Text("蛋白質")
-                                .font(.system(size: 11))
+                                .font(HybridTheme.Typography.badge)
                                 .foregroundColor(HybridTheme.textSecondary)
                         }
                         
@@ -152,22 +162,22 @@ public struct NutritionCapsuleView: View {
                                     .frame(width: max(0, geo.size.width * proteinRatio))
                             }
                         }
-                        .frame(height: 5)
+                        .frame(height: 6)
                     }
                     .frame(maxWidth: .infinity)
                     
                     // 熱量
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
                             Text(isUnlogged ? "—" : "\(Int(model.consumedKcal))")
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .font(HybridTheme.Typography.metricMedium)
                                 .foregroundColor(HybridTheme.textPrimary)
                             Text("/ ≈\(Int(model.targetKcal))")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(HybridTheme.Typography.badge.weight(.semibold))
                                 .foregroundColor(HybridTheme.textSecondary)
                             Spacer()
                             Text("卡路里")
-                                .font(.system(size: 11))
+                                .font(HybridTheme.Typography.badge)
                                 .foregroundColor(HybridTheme.textSecondary)
                         }
                         
@@ -178,44 +188,44 @@ public struct NutritionCapsuleView: View {
                                     .fill(HybridTheme.surfaceElevated)
                                 Capsule()
                                     .fill(LinearGradient(
-                                        colors: [Color(hex: phase.hexColor), Color(hex: phase.hexColor).opacity(0.7)],
+                                        colors: [phaseColor, phaseColor.opacity(0.7)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ))
                                     .frame(width: max(0, geo.size.width * kcalRatio))
                             }
                         }
-                        .frame(height: 5)
+                        .frame(height: 6)
                     }
                     .frame(maxWidth: .infinity)
                 }
                 
                 // 3. 底部引導行 (Toast 訊息或情境引導)
                 if let toast = toastMessage {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                             .foregroundColor(HybridTheme.successGreen)
                         Text(toast)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(HybridTheme.Typography.badge.weight(.semibold))
                             .foregroundColor(HybridTheme.successGreen)
                         Spacer()
                     }
                     .transition(.opacity)
                 } else {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                             .foregroundColor(HybridTheme.textSecondary)
                         Text(guidanceText)
-                            .font(.system(size: 11))
+                            .font(HybridTheme.Typography.subheadline)
                             .foregroundColor(HybridTheme.textSecondary)
                             .lineLimit(1)
                         Spacer()
                     }
                 }
             }
-            .padding(14)
+            .padding(16)
             .background(HybridTheme.cardBackground)
             .cornerRadius(18)
             .overlay(

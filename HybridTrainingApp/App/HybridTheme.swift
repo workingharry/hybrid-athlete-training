@@ -122,4 +122,52 @@ public struct HybridTheme {
     public static var activityPurple: Color {
         dynamic(light: "AF52DE", dark: "BF5AF2")
     }
+    
+    /// 咖啡因 / 大地棕 (深色: #BFA37E | 淺色: #A2845E)
+    public static var caffeineBrown: Color {
+        dynamic(light: "A2845E", dark: "BFA37E")
+    }
+    
+    /// 晝夜深靛藍 / 睡前褪黑 (深色: #5E5CE6 | 淺色: #5856D6)
+    public static var sleepIndigo: Color {
+        dynamic(light: "5856D6", dark: "5E5CE6")
+    }
+    
+    /// 節律洋青 / Tmin 錨定 (深色: #40C8E0 | 淺色: #30B0C7)
+    public static var rhythmCyan: Color {
+        dynamic(light: "30B0C7", dark: "40C8E0")
+    }
+    
+    // MARK: - Apple HIG 標竿字體排版系統 (Human Interface Guidelines Typography)
+    public struct Typography {
+        /// 螢幕大標題 (34pt, Semibold/Bold)
+        public static let largeTitle: Font = .system(size: 34, weight: .bold, design: .default)
+        
+        /// 卡片大標題 / 一級功能題 (22pt, Bold)
+        public static let title2: Font = .system(size: 22, weight: .bold, design: .default)
+        
+        /// 分區標題 / 卡片標頭 (17pt, Semibold)
+        public static let cardTitle: Font = .system(size: 17, weight: .semibold, design: .default)
+        
+        /// 主要 KPI 數值 (28pt/32pt, Heavy, Rounded)
+        public static let metricHero: Font = .system(size: 30, weight: .heavy, design: .rounded)
+        
+        /// 中型 KPI 數值 (20pt, Bold, Rounded)
+        public static let metricMedium: Font = .system(size: 20, weight: .bold, design: .rounded)
+        
+        /// 緊湊數據/時間 (14pt-15pt, Bold, Monospaced)
+        public static let metricMonospaced: Font = .system(size: 15, weight: .bold, design: .monospaced)
+        
+        /// 正文主要文本 (15pt-16pt, Regular)
+        public static let body: Font = .system(size: 15, weight: .regular, design: .default)
+        
+        /// 藥丸徽章 / 標籤膠囊 (12pt-13pt, Semibold)
+        public static let badge: Font = .system(size: 12, weight: .semibold, design: .default)
+        
+        /// 次要說明 / 時間標籤 (12pt-13pt, Medium)
+        public static let subheadline: Font = .system(size: 13, weight: .medium, design: .default)
+        
+        /// 圖表坐標軸刻度 / 底部註腳 (11pt-12pt, Medium, Monospaced)
+        public static let chartAxis: Font = .system(size: 11, weight: .medium, design: .monospaced)
+    }
 }

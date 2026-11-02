@@ -13,6 +13,9 @@ public protocol HealthKitPort: Sendable {
     
     /// 查詢指定時間範圍內之歷史訓練記錄
     func fetchWorkouts(from startDate: Date, to endDate: Date) async throws -> [WorkoutSession]
+    
+    /// 查詢指定日期前歷史每日睡眠記錄 (供晝夜節律對齊與睡眠債計算)
+    func fetchHistoricalSleepRecords(upTo date: Date, days: Int) async -> [DailySleepRecord]
 }
 
 /// 課表手錶排程推送端口協議 (WorkoutKit Port)

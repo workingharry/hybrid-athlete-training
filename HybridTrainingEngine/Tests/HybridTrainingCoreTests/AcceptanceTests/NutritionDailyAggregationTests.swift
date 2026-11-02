@@ -89,4 +89,39 @@ final class NutritionDailyAggregationTests: XCTestCase {
         XCTAssertEqual(totalProtein, 36.0)
         XCTAssertEqual(totalCarbs, 77.0)
     }
+
+    func testSDDailyNutritionEntry_caffeineMgField() {
+        let defaultEntry = SDDailyNutritionEntry(
+            timestamp: Date(),
+            foodName: "白飯",
+            calories: 200,
+            proteinGrams: 4,
+            carbsGrams: 45,
+            fatGrams: 0.5
+        )
+        XCTAssertEqual(defaultEntry.caffeineMg, 0.0, "預設咖啡因應為 0.0mg")
+
+        let caffeineEntry1 = SDDailyNutritionEntry(
+            timestamp: Date(),
+            foodName: "晨間美式黑咖啡",
+            calories: 5,
+            proteinGrams: 0,
+            carbsGrams: 1,
+            fatGrams: 0,
+            caffeineMg: 150.0
+        )
+        let caffeineEntry2 = SDDailyNutritionEntry(
+            timestamp: Date().addingTimeInterval(3600),
+            foodName: "午後綠茶",
+            calories: 0,
+            proteinGrams: 0,
+            carbsGrams: 0,
+            fatGrams: 0,
+            caffeineMg: 35.0
+        )
+
+        let totalCaffeine = [defaultEntry, caffeineEntry1, caffeineEntry2].reduce(0.0) { $0 + $1.caffeineMg }
+        XCTAssertEqual(totalCaffeine, 185.0, accuracy: 0.001)
+    }
 }
+

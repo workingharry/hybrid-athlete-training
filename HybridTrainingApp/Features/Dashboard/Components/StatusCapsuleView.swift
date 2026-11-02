@@ -17,16 +17,16 @@ public struct StatusCapsuleView: View {
                     .fill(readinessColor)
                     .frame(width: 8, height: 8)
                 Text(readinessText)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(HybridTheme.Typography.badge)
                     .foregroundColor(HybridTheme.textPrimary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .background(HybridTheme.cardBackground)
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(readinessColor.opacity(0.3), lineWidth: 1)
+                    .stroke(readinessColor.opacity(0.35), lineWidth: 1)
             )
             
             // ACWR 負荷比藥丸
@@ -35,11 +35,11 @@ public struct StatusCapsuleView: View {
                     .fill(acwrColor)
                     .frame(width: 8, height: 8)
                 Text("7天 ACWR: \(String(format: "%.2f", decision.acwrRatio))")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(HybridTheme.Typography.badge)
                     .foregroundColor(HybridTheme.textPrimary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
             .background(HybridTheme.cardBackground)
             .cornerRadius(20)
             .overlay(

@@ -14,6 +14,11 @@ public struct SettingsView: View {
     @AppStorage("enable_nutrition_module") private var enableNutritionModule: Bool = false
     @AppStorage("app_theme_mode") private var themeModeRaw: String = AppThemeMode.system.rawValue
     
+    // 食物視覺分析模式與 OpenRouter 設定 (對齊 free-router 規範)
+    @AppStorage("food_vision_engine_mode") private var visionEngineModeRaw: String = FoodVisionEngineMode.autoHybrid.rawValue
+    @AppStorage("openrouter_custom_api_key") private var customOpenRouterKey: String = ""
+    @AppStorage("openrouter_selected_model") private var selectedOpenRouterModel: String = "openrouter/free"
+    
     @State private var isShowingAudit: Bool = false
     @State private var isShowingRoutineLibrary: Bool = false
     
@@ -150,7 +155,7 @@ public struct SettingsView: View {
 
                     // 5. 飲食與能量攝取模組 (選用 / 實驗中功能)
                     Section(header: Text("飲食與能量補給管理 (選用模組)").foregroundColor(HybridTheme.textSecondary),
-                            footer: Text("啟用後可利用 iPhone 原生相機與 Siri AI 捷徑拍攝每日餐點紀錄攝取卡路里與蛋白質，完全遵循 Local-First 隱私原則。").foregroundColor(HybridTheme.textSecondary)) {
+                            footer: Text("支援 openrouter/free 零成本雲端大模型視覺解析，與 Apple Vision 100% 離線神經引擎。若無網路或免費節點壅塞將自動平滑降級至本地離線辨識。").foregroundColor(HybridTheme.textSecondary)) {
                         Toggle(isOn: $enableNutritionModule) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("啟用飲食與營養攝取追蹤")
@@ -161,6 +166,48 @@ public struct SettingsView: View {
                             }
                         }
                         .tint(HybridTheme.successGreen)
+                        
+                        if enableNutritionModule {
+                            Picker("視覺分析模式", selection: $visionEngineModeRaw) {
+                                Text("🤖 智慧混合 (優先 openrouter/free)").tag(FoodVisionEngineMode.autoHybrid.rawValue)
+                                Text("🍎 僅限本機 (Apple Vision 100% 離線)").tag(FoodVisionEngineMode.localOnly.rawValue)
+                                Text("⚡ 自訂雲端模型").tag(FoodVisionEngineMode.customCloud.rawValue)
+                            }
+                            .foregroundColor(HybridTheme.textPrimary)
+                            .tint(HybridTheme.accentBlue)
+                            
+                            if visionEngineModeRaw == FoodVisionEngineMode.autoHybrid.rawValue {
+                                HStack {
+                                    Label("預設模型", systemImage: "sparkles")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(HybridTheme.textSecondary)
+                                    Spacer()
+                                    Text("openrouter/free ($0.00 免費)")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(HybridTheme.successGreen)
+                                }
+                            } else if visionEngineModeRaw == FoodVisionEngineMode.customCloud.rawValue {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("自訂 OpenRouter 模型標識")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(HybridTheme.textSecondary)
+                                    TextField("e.g. google/gemini-2.5-flash", text: $selectedOpenRouterModel)
+                                        .textFieldStyle(.roundedBorder)
+                                        .autocorrectionDisabled()
+                                        .textInputAutocapitalization(.never)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("個人專屬 API Key (選填)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(HybridTheme.textSecondary)
+                                    SecureField("留空則自動調用內建 free-router Key", text: $customOpenRouterKey)
+                                        .textFieldStyle(.roundedBorder)
+                                        .autocorrectionDisabled()
+                                        .textInputAutocapitalization(.never)
+                                }
+                            }
+                        }
                     }
                     .listRowBackground(HybridTheme.cardBackground)
                     

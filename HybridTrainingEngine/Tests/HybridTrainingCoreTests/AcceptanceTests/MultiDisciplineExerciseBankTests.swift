@@ -50,7 +50,7 @@ final class MultiDisciplineExerciseBankTests: XCTestCase {
     }
 
     func testQuickLogDraftMultiDisciplineSessionCreation() {
-        var cyclingDraft = QuickLogDraft(
+        let cyclingDraft = QuickLogDraft(
             discipline: .cycling,
             durationMinutes: 45.0,
             sRPE: 6.0
