@@ -139,7 +139,7 @@ public struct ApplePayOnboardingView: View {
                 ActiveStepCard(
                     stepNumber: 2,
                     title: "步驟 2：選取「交易」並設定「立即執行」",
-                    description: "在觸發條件清單中選擇「交易 (Transaction)」，勾選常用 Apple Pay 信用卡或八達通。\n\n⚠️ 關鍵開關：務必勾選「立即執行 (Run Immediately)」並關閉「執行前詢問」與「執行時通知」，才能享受完全無感的背景靜默入帳！"
+                    description: "在觸發條件清單中選擇「交易 (Transaction)」，勾選常用 Apple Pay 信用卡或八達通。\n\n⚠️ 關鍵開關：務必勾選「立即執行 (Run Immediately)」並關閉「執行前詢問」與「執行時通知」，才能享受完全無感的背景靜默入帳！\n\n💡 八達通小提醒：因 Apple 錢包對八達通採用離線交通協定，感應時金額固定傳入 $0。建議在捷徑內增加「詢問輸入」動作或使用截圖辨識記帳。"
                 )
 
                 ActiveStepCard(
@@ -212,8 +212,8 @@ public struct ApplePayOnboardingView: View {
 
                 ActiveStepCard(
                     stepNumber: 4,
-                    title: "解法 4：各大銀行扣款簡訊與推播通知 (Notification Trigger)",
-                    description: "【原理】：針對不支援 Apple Pay 交易自動化的卡片，可在捷徑建立「通知自動化」，當收到來自匯豐 HSBC、中銀、渣打或恒生的扣款通知時，自動傳入零打字記帳引擎，背景秒級清洗入帳。"
+                    title: "解法 4：八達通 (Octopus) 快捷交通卡專屬最佳解法",
+                    description: "【原理】：Apple 錢包對八達通等快捷交通卡僅回傳 $0（受限於 Apple 離線交通協定）。\n\n推薦兩種社群公認最佳解法：\n① 捷徑判斷式輸入：在自動化中判斷卡片若為八達通，加入「詢問輸入」動作輸入金額後傳給「記錄支出」。\n② 截圖辨識記帳：出站時對準扣款閘門螢幕或八達通 App 餘額，輕點 iPhone 背面截圖，本機 Vision OCR 會秒級精確識別「扣除」車費並自動忽略卡片餘額。"
                 )
             }
 
@@ -248,8 +248,8 @@ public struct ApplePayOnboardingView: View {
             VStack(spacing: 14) {
                 ActiveStepCard(
                     stepNumber: 1,
-                    title: "通知與扣款簡訊解析",
-                    description: "收到銀行扣款簡訊（如 HSBC、中銀、渣打）時長按複製，或透過「通知」捷徑自動化傳入，引擎自動去除公式注入字元並提取實付金額。"
+                    title: "銀行扣款簡訊解析",
+                    description: "收到銀行扣款簡訊（如 HSBC、中銀、渣打）時長按複製，或透過捷徑「訊息」自動化傳入，引擎自動去除公式注入字元並提取實付金額。"
                 )
 
                 ActiveStepCard(
@@ -605,8 +605,13 @@ public struct ApplePayOnboardingView: View {
             }
 
             FAQAccordionRow(
-                question: "❓ 為什麼搭乘港鐵或海外交通進站時顯示 $0？",
-                answer: "各大城市地鐵（如港鐵 MTR、倫敦 Tube、日本 Suica）在進站感應時傳送的是 $0 進站預授權。本 App 內建智能待結算機制，標記為待結算，在出站收到正式扣款金額時自動配對沖銷，絕不漏計也不重計！"
+                question: "❓ 為什麼八達通 / 快捷交通卡感應時顯示 $0？",
+                answer: "這是由於 Apple Wallet 交通卡離線傳輸協定限制，感應時 Apple 錢包僅傳送卡號與時間，金額固定為 $0（由閘門離線扣款）。\n\n推薦兩種最佳解法：\n1. 捷徑條件式輸入：在「捷徑」自動化中判斷卡片若為八達通，加入「詢問輸入 (Ask for Input)」動作填入車費後傳入「記錄支出」。\n2. 截圖 / 輕點背面辨識：直接對準出閘收費螢幕或八達通 App 餘額輕點背面截圖，端側 Vision OCR 會自動辨識「扣除」金額並忽略卡片餘額！"
+            )
+
+            FAQAccordionRow(
+                question: "❓ 為什麼搭乘港鐵信用卡拍卡進站時顯示 $0？",
+                answer: "各大城市地鐵（如港鐵 MTR、倫敦 Tube、日本 Suica）在信用卡進站感應時傳送的是 $0 進站預授權。本 App 內建智能待結算機制，標記為待結算，在出站收到正式扣款金額時自動配對沖銷，絕不漏計也不重計！"
             )
 
             FAQAccordionRow(

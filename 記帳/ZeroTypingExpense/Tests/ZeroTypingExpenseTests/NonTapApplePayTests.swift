@@ -391,6 +391,26 @@ struct NonTapApplePayTests {
             _ = try await validIntent.perform()
             let all = await SharedTransactionEngine.shared.getAllTransactions()
             #expect(all.contains { $0.sourceTransactionId == "STB-INTENT-01" })
+
+            // Test Octopus transit zero amount handling
+            let octopusZeroIntent = RecordExpenseIntent(
+                amount: 0.0,
+                merchant: "八達通 - 港鐵出閘",
+                sourceTransactionId: "OCTOPUS-ZERO-01"
+            )
+            let octResult = try await octopusZeroIntent.perform()
+            #expect(octResult.value?.needsReview == true)
+            #expect(octResult.value?.amount == 0.0)
+            let updatedAll = await SharedTransactionEngine.shared.getAllTransactions()
+            let octTx = updatedAll.first { $0.sourceTransactionId == "OCTOPUS-ZERO-01" }
+            #expect(octTx?.reviewStatus == .needsReview)
+            #expect(octTx?.provider == .octopus)
+
+            // Test ProcessPaymentScreenshotIntent error handling
+            let emptyScreenshotIntent = ProcessPaymentScreenshotIntent()
+            await #expect(throws: ProcessPaymentScreenshotIntent.IntentError.unrecognizedAmount) {
+                _ = try await emptyScreenshotIntent.perform()
+            }
         }
     }
 }

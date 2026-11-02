@@ -1,6 +1,9 @@
 import Foundation
 #if canImport(AppIntents)
 import AppIntents
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 
 // MARK: - Parsed Expense Entity for iOS Shortcuts Output
 
@@ -205,10 +208,32 @@ public struct RecordExpenseIntent: AppIntent {
         }
 
         let isZeroAmount = (finalAmountMinor == 0)
+        let isTransitOrOctopus = resolvedMerchant.localizedCaseInsensitiveContains("octopus") ||
+                                 resolvedMerchant.contains("八達通") ||
+                                 resolvedMerchant.localizedCaseInsensitiveContains("mtr") ||
+                                 resolvedMerchant.contains("港鐵") ||
+                                 resolvedMerchant.contains("九巴") ||
+                                 resolvedMerchant.localizedCaseInsensitiveContains("kmb") ||
+                                 resolvedMerchant.contains("城巴") ||
+                                 resolvedMerchant.contains("新巴") ||
+                                 resolvedMerchant.contains("天星小輪") ||
+                                 resolvedMerchant.contains("交通") ||
+                                 resolvedMerchant.contains("進站")
+
+        let effectiveProvider: PaymentProvider
+        if resolvedMerchant.localizedCaseInsensitiveContains("octopus") || resolvedMerchant.contains("八達通") {
+            effectiveProvider = .octopus
+        } else {
+            effectiveProvider = .applePay
+        }
+
+        let needsReview = isZeroAmount
+        let reviewStatus: ReviewStatus = needsReview ? .needsReview : .confirmed
+        let paymentStatus: PaymentStatus = needsReview ? .pending : .completed
 
         let transaction = TransactionEntity(
             idempotencyKey: idempotencyKey,
-            provider: .applePay,
+            provider: effectiveProvider,
             captureChannel: .walletAutomation,
             deviceSource: devSource,
             sourceTransactionId: effectiveTxId,
@@ -218,11 +243,11 @@ public struct RecordExpenseIntent: AppIntent {
             currency: resolvedCurrency,
             ledgerAmountMinor: finalAmountMinor,
             ledgerCurrency: resolvedCurrency,
-            reviewStatus: isZeroAmount ? .needsReview : .confirmed,
-            paymentStatus: isZeroAmount ? .pending : .completed,
+            reviewStatus: reviewStatus,
+            paymentStatus: paymentStatus,
             duplicateStatus: .unique,
             transactionType: parsedType,
-            amountConfidence: 1.0,
+            amountConfidence: isZeroAmount ? 0.0 : 1.0,
             currencyConfidence: 1.0,
             merchantConfidence: 0.95
         )
@@ -238,15 +263,21 @@ public struct RecordExpenseIntent: AppIntent {
             amount: parsedAmount,
             currency: resolvedCurrency,
             merchant: resolvedMerchant,
-            paymentMethod: "Apple Pay",
-            needsReview: isZeroAmount
+            paymentMethod: effectiveProvider.rawValue,
+            needsReview: needsReview
         )
 
         if isZeroAmount {
-            if resolvedMerchant.localizedCaseInsensitiveContains("mtr") || resolvedMerchant.localizedCaseInsensitiveContains("港鐵") || resolvedMerchant.localizedCaseInsensitiveContains("進站") {
-                return .result(value: entity, dialog: "已記錄交通進站預授權（待出站結算扣款）")
+            if isTransitOrOctopus {
+                return .result(
+                    value: entity,
+                    dialog: "八達通 / 交通卡感應金額為 $0（受限於 Apple 離線交通協定），已建立待核對項目，請在待審核區手動補錄或於捷徑使用「詢問輸入」"
+                )
             } else {
-                return .result(value: entity, dialog: "已記錄待確認交易（金額為 0，請確認捷徑是否已正確綁定「捷徑輸入 ➔ 金額」）")
+                return .result(
+                    value: entity,
+                    dialog: "已記錄待確認交易（金額為 0，請確認捷徑是否已正確綁定「捷徑輸入 ➔ 金額」）"
+                )
             }
         }
 
@@ -256,11 +287,14 @@ public struct RecordExpenseIntent: AppIntent {
 
     public enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {
         case invalidAmount
+        case unrecognizedAmount
 
         public var localizedStringResource: LocalizedStringResource {
             switch self {
             case .invalidAmount:
                 return "交易金額必須大於或等於 0"
+            case .unrecognizedAmount:
+                return "未能辨識有效交易金額，請手動確認或輸入"
             }
         }
     }
@@ -273,7 +307,7 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
     public static let title: LocalizedStringResource = "辨識截圖記帳"
     public static let description = IntentDescription("接收付款收據或線上 Apple Pay 截圖，透過 Vision OCR 辨識金額、商戶並自動記帳")
 
-    @Parameter(title: "截圖圖片", description: "直接傳入付款截圖或收據圖片檔案進行端側 AI 辨識", default: nil)
+    @Parameter(title: "截圖圖片", description: "直接傳入付款截圖或收據圖片檔案進行端側 AI 辨識", default: nil, supportedContentTypes: [.image])
     public var screenshotFile: IntentFile?
 
     @Parameter(title: "截圖文字或收據行", description: "從截圖 OCR 或剪貼簿提取之收據文字行數", default: [])
@@ -295,10 +329,14 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
     }
 
     public static var parameterSummary: some ParameterSummary {
-        Summary("解析付款截圖並自動入帳")
+        Summary("解析付款截圖 \(\.$screenshotFile) 並自動入帳")
     }
 
     public func perform() async throws -> some IntentResult & ReturnsValue<ParsedExpenseEntity> & ProvidesDialog {
+        guard screenshotFile != nil || !recognizedLines.isEmpty else {
+            throw IntentError.unrecognizedAmount
+        }
+
         let channel: CaptureChannel = (triggerChannel == "action_button") ? .actionButton : .backTap
 
         let ocrResult: OCRResult
@@ -311,6 +349,8 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
         } else {
             ocrResult = VisionOCRService.shared.parseRecognizedStrings(recognizedLines)
         }
+
+        let isAmountMissingOrZero = (ocrResult.amountMinor == nil || ocrResult.amountMinor == 0)
 
         let provider: PaymentProvider
         if recognizedLines.joined(separator: "\n").localizedCaseInsensitiveContains("apple store") ||
@@ -331,7 +371,6 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             idempotencyKey = "\(channel.rawValue)_\(canon)_\(ocrResult.amountMinor ?? 0)_\(minuteBucket)"
         }
 
-        let isAmountMissingOrZero = (ocrResult.amountMinor == nil || ocrResult.amountMinor == 0)
         let reviewStatus: ReviewStatus = (isAmountMissingOrZero || ocrResult.requiresManualReview) ? .needsReview : .confirmed
         let paymentStatus: PaymentStatus = isAmountMissingOrZero ? .pending : .completed
 
@@ -378,7 +417,21 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             let major = Double(minor) / 100.0
             return .result(value: entity, dialog: "已由截圖自動入帳 \(ocrResult.currency)$\(String(format: "%.2f", major)) 於 \(parsedMerchant)")
         } else {
-            return .result(value: entity, dialog: "截圖未辨識到明確金額，已建立待審核交易以保護預算")
+            return .result(value: entity, dialog: "截圖未辨識到明確金額（已標記為待核對），請在 App 內待審核區手動輸入金額")
+        }
+    }
+
+    public enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {
+        case unrecognizedAmount
+        case invalidImageData
+
+        public var localizedStringResource: LocalizedStringResource {
+            switch self {
+            case .unrecognizedAmount:
+                return "截圖未辨識到有效金額，請手動確認或輸入"
+            case .invalidImageData:
+                return "截圖圖片檔案損壞或無法讀取"
+            }
         }
     }
 }

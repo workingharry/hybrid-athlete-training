@@ -159,9 +159,9 @@ public final class VisionOCRService: Sendable {
             }
         }
 
-        // 3. Extract Candidate Amounts
+        // 3. Extract Candidate Amounts & Keyword-Anchored Scoring
         var foundMinorAmounts: [Int64] = []
-        var paidAmountCandidate: Int64? = nil
+        var scoredCandidates: [(amount: Int64, score: Int, isNegative: Bool)] = []
 
         func parseAmountString(_ str: String) -> Int64? {
             let cleaned = str
@@ -180,90 +180,135 @@ public final class VisionOCRService: Sendable {
         }
 
         if let kvAmount = kvAmountRaw, let parsed = parseAmountString(kvAmount) {
-            paidAmountCandidate = parsed
             foundMinorAmounts.append(parsed)
+            scoredCandidates.append((amount: parsed, score: 95, isNegative: false))
         }
 
-        // Decimal amounts (e.g. 85.00, 58.00, HK$85.00, ¥85.00)
         let amountPattern = #"(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2})"#
-        if let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
-            let nsText = fullText as NSString
-            let matches = regex.matches(in: fullText, range: NSRange(location: 0, length: nsText.length))
-            for match in matches {
-                if match.numberOfRanges > 1 {
-                    let amountStr = nsText.substring(with: match.range(at: 1)).replacingOccurrences(of: ",", with: "")
-                    if let decimal = Decimal(string: amountStr) {
-                        let minor = NSDecimalNumber(decimal: decimal * 100).int64Value
-                        if minor > 0 && !foundMinorAmounts.contains(minor) {
-                            foundMinorAmounts.append(minor)
-                        }
-                    }
-                }
-            }
-        }
+        let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣)(?![0-9]|\.[0-9])"#
 
-        // Integer amounts with currency symbols or tokens (e.g., HK$10, 10 hkd, $10, ¥10, 10元)
-        if foundMinorAmounts.isEmpty {
-            let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣)(?![0-9]|\.[0-9])"#
-            if let regex = try? NSRegularExpression(pattern: intCurrencyPattern, options: []) {
-                let nsText = fullText as NSString
-                let matches = regex.matches(in: fullText, range: NSRange(location: 0, length: nsText.length))
+        // Negative line filter keywords
+        let balanceLineKeywords = ["餘額", "卡片餘額", "$0.00"]
+        let discountLineKeywords = ["優惠", "折扣", "回贈", "積分"]
+
+        // Positive payment keywords
+        let tier1PositiveKeywords = ["扣除", "實付", "實際支付", "扣款金額", "扣款", "收費", "車費"]
+        let tier2PositiveKeywords = ["支出", "消費", "合計", "總計", "总计", "金額", "金额"]
+
+        for line in sanitizedLines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+
+            // Balance lines (e.g. Octopus "餘額 $145.20") and $0.00 are completely discarded from candidate amounts
+            let isBalanceLine = balanceLineKeywords.contains { trimmed.contains($0) }
+            if isBalanceLine {
+                continue
+            }
+
+            // Discount lines (e.g. "優惠券折抵 -HK$27.00") should never be chosen as the paid amount
+            let isDiscountLine = discountLineKeywords.contains { trimmed.contains($0) }
+
+            var lineScore = 20
+            if tier1PositiveKeywords.contains(where: { trimmed.contains($0) }) {
+                lineScore = 100
+            } else if tier2PositiveKeywords.contains(where: { trimmed.contains($0) }) {
+                lineScore = 70
+            }
+
+            var lineFoundMinors: [Int64] = []
+
+            // Extract decimal amounts on this line
+            if let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
+                let nsLine = trimmed as NSString
+                let matches = regex.matches(in: trimmed, range: NSRange(location: 0, length: nsLine.length))
                 for match in matches {
-                    let range1 = match.range(at: 1)
-                    let range2 = match.range(at: 2)
-                    let str = (range1.location != NSNotFound) ? nsText.substring(with: range1) : (range2.location != NSNotFound ? nsText.substring(with: range2) : nil)
-                    if let s = str, let intVal = Int64(s), intVal > 0 {
-                        let minor = intVal * 100
-                        if !foundMinorAmounts.contains(minor) {
-                            foundMinorAmounts.append(minor)
+                    if match.numberOfRanges > 1 {
+                        let amountStr = nsLine.substring(with: match.range(at: 1)).replacingOccurrences(of: ",", with: "")
+                        if let decimal = Decimal(string: amountStr) {
+                            let minor = NSDecimalNumber(decimal: decimal * 100).int64Value
+                            if minor > 0 && !lineFoundMinors.contains(minor) {
+                                lineFoundMinors.append(minor)
+                            }
                         }
                     }
                 }
             }
+
+            // Extract integer amounts with currency tokens if no decimal found on this line
+            if lineFoundMinors.isEmpty {
+                if let regex = try? NSRegularExpression(pattern: intCurrencyPattern, options: []) {
+                    let nsLine = trimmed as NSString
+                    let matches = regex.matches(in: trimmed, range: NSRange(location: 0, length: nsLine.length))
+                    for match in matches {
+                        let range1 = match.range(at: 1)
+                        let range2 = match.range(at: 2)
+                        let str = (range1.location != NSNotFound) ? nsLine.substring(with: range1) : (range2.location != NSNotFound ? nsLine.substring(with: range2) : nil)
+                        if let s = str, let intVal = Int64(s), intVal > 0 {
+                            let minor = intVal * 100
+                            if !lineFoundMinors.contains(minor) {
+                                lineFoundMinors.append(minor)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Standalone pure integer line fallback (e.g. "10")
+            if lineFoundMinors.isEmpty {
+                if let intVal = Int64(trimmed), intVal > 0, intVal < 1000000 {
+                    lineFoundMinors.append(intVal * 100)
+                }
+            }
+
+            for minor in lineFoundMinors {
+                if !foundMinorAmounts.contains(minor) {
+                    foundMinorAmounts.append(minor)
+                }
+                scoredCandidates.append((amount: minor, score: isDiscountLine ? -100 : lineScore, isNegative: isDiscountLine))
+            }
         }
 
-        // Standalone pure integer line fallback (e.g. "10")
-        if foundMinorAmounts.isEmpty {
-            for line in sanitizedLines {
-                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let intVal = Int64(trimmed), intVal > 0, intVal < 1000000 {
-                    let minor = intVal * 100
-                    foundMinorAmounts.append(minor)
+        // Determine primary candidate amount using keyword-anchored scoring
+        let eligibleCandidates = scoredCandidates.filter { !$0.isNegative && $0.score > 0 }
+        let sortedEligible = eligibleCandidates.sorted { c1, c2 in
+            if c1.score != c2.score {
+                return c1.score > c2.score
+            }
+            return c1.amount > c2.amount
+        }
+
+        let primaryAmount: Int64? = sortedEligible.first?.amount ?? foundMinorAmounts.first
+        let hasAmbiguousAmounts = foundMinorAmounts.count > 1
+
+        // 4. Extract Merchant
+        var merchantCandidate: String? = kvMerchantRaw.map { VisionOCRService.cleanMerchantName($0) }
+
+        // 4-pre: Transit and Known Merchant Recognition (§5.5)
+        if merchantCandidate == nil {
+            let transitMerchants: [(pattern: String, name: String)] = [
+                ("港鐵", "港鐵"),
+                ("MTR", "港鐵"),
+                ("九巴", "九巴"),
+                ("KMB", "九巴"),
+                ("城巴", "城巴"),
+                ("Citybus", "城巴"),
+                ("新巴", "新巴"),
+                ("NWFB", "新巴"),
+                ("天星小輪", "天星小輪"),
+                ("Star Ferry", "天星小輪"),
+                ("7-Eleven", "7-Eleven"),
+                ("7-ELEVEN", "7-Eleven"),
+                ("7-11", "7-Eleven"),
+                ("Circle K", "Circle K"),
+                ("OK便利店", "Circle K")
+            ]
+            for item in transitMerchants {
+                if fullText.localizedCaseInsensitiveContains(item.pattern) {
+                    merchantCandidate = item.name
                     break
                 }
             }
         }
-
-        // Contextual cues for actual paid amount in lines (Section 5.5 / S04)
-        for line in sanitizedLines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.contains("實付") || trimmed.contains("实际支付") || trimmed.contains("扣款金額") || trimmed.contains("合計") || trimmed.contains("总计") {
-                if let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
-                    let nsLine = trimmed as NSString
-                    if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)),
-                       match.numberOfRanges > 1 {
-                        let amountStr = nsLine.substring(with: match.range(at: 1)).replacingOccurrences(of: ",", with: "")
-                        if let decimal = Decimal(string: amountStr) {
-                            paidAmountCandidate = NSDecimalNumber(decimal: decimal * 100).int64Value
-                        }
-                    }
-                }
-            }
-        }
-
-        // Determine primary candidate amount (§5.5 / ATM-12)
-        let hasAmbiguousAmounts = foundMinorAmounts.count > 1
-        let primaryAmount: Int64?
-        if let explicit = paidAmountCandidate {
-            primaryAmount = explicit
-        } else if hasAmbiguousAmounts {
-            primaryAmount = foundMinorAmounts.min()
-        } else {
-            primaryAmount = foundMinorAmounts.first
-        }
-
-        // 4. Extract Merchant
-        var merchantCandidate: String? = kvMerchantRaw.map { VisionOCRService.cleanMerchantName($0) }
 
         // 4a. Connective pattern extraction (e.g. "HK$68.00 於 Pacific Coffee", "10 hkd at seven eleven", "在 麥當勞 消費了")
         if merchantCandidate == nil {
@@ -412,7 +457,12 @@ public final class VisionOCRService: Sendable {
             return .alipayHK
         } else if upper.contains("ALIPAY") || text.contains("支付宝") {
             return .alipayChina
-        } else if upper.contains("OCTOPUS") || text.contains("八達通") {
+        } else if upper.contains("OCTOPUS") || text.contains("八達通") ||
+                  upper.contains("MTR") || text.contains("港鐵") ||
+                  text.contains("九巴") || upper.contains("KMB") ||
+                  text.contains("城巴") || upper.contains("CITYBUS") ||
+                  text.contains("新巴") || text.contains("天星小輪") ||
+                  (text.contains("扣除") && text.contains("餘額")) {
             return .octopus
         } else if upper.contains("PAYME") {
             return .payMe
@@ -480,7 +530,7 @@ public final class VisionOCRService: Sendable {
     }
 
     #if canImport(Vision) && canImport(CoreGraphics)
-    /// Execute on-device Vision VNRecognizeTextRequest on downsampled image data (Max 2048px to prevent Jetsam OOM)
+    /// Execute on-device Vision VNRecognizeTextRequest on downsampled image data (Max 2560px to prevent Jetsam OOM)
     public func recognizeReceipt(imageData: Data) async throws -> OCRResult {
         guard !imageData.isEmpty else {
             return parseRecognizedStrings([])
@@ -493,7 +543,8 @@ public final class VisionOCRService: Sendable {
 
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: 2048,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2560,
             kCGImageSourceShouldCacheImmediately: true
         ]
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) ?? CGImageSourceCreateImageAtIndex(source, 0, nil) else {

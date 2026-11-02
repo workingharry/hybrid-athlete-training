@@ -194,4 +194,68 @@ struct VisionOCRTests {
         #expect(res.currency == "HKD")
         #expect(res.merchantRaw == "USD Global Express")
     }
+
+    @Test("Octopus reader screenshot OCR: parses 1250 minor units and ignores 14520 balance")
+    func testOctopusReaderScreenshotOCR() {
+        let lines = [
+            "港鐵",
+            "扣除 $12.50",
+            "餘額 $145.20"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 1250)
+        #expect(result.currency == "HKD")
+        #expect(result.provider == .octopus)
+        #expect(result.merchantRaw == "港鐵")
+        #expect(result.requiresManualReview == false)
+        #expect(result.amountConfidence == 1.0)
+    }
+
+    @Test("Capscreen with discounts and promotions: parses 4500, not 200")
+    func testCapscreenWithDiscounts() {
+        let lines = [
+            "7-Eleven",
+            "實付 $45.00",
+            "優惠 $2.00"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 4500)
+        #expect(result.currency == "HKD")
+        #expect(result.merchantRaw == "7-Eleven")
+    }
+
+    @Test("Octopus reader with low balance: ignores $5.00 balance and extracts $12.50 fare")
+    func testOctopusLowBalanceIgnored() {
+        let lines = [
+            "九巴 KMB",
+            "車費 $12.50",
+            "卡片餘額 $5.00"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 1250)
+        #expect(result.provider == .octopus)
+        #expect(result.merchantRaw == "九巴")
+        #expect(result.requiresManualReview == false)
+    }
+
+    @Test("Transit merchant recognition: MTR, KMB, Citybus, Star Ferry")
+    func testTransitMerchantRecognition() {
+        let res1 = ocrService.parseRecognizedStrings(["MTR", "收費 $9.80"])
+        #expect(res1.merchantRaw == "港鐵")
+        #expect(res1.amountMinor == 980)
+
+        let res2 = ocrService.parseRecognizedStrings(["城巴 Citybus", "車費 $15.30"])
+        #expect(res2.merchantRaw == "城巴")
+        #expect(res2.amountMinor == 1530)
+
+        let res3 = ocrService.parseRecognizedStrings(["天星小輪", "扣款 $5.00"])
+        #expect(res3.merchantRaw == "天星小輪")
+        #expect(res3.amountMinor == 500)
+    }
 }
