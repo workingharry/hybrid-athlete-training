@@ -217,15 +217,13 @@ public struct RecordExpenseIntent: AppIntent {
                                  resolvedMerchant.contains("城巴") ||
                                  resolvedMerchant.contains("新巴") ||
                                  resolvedMerchant.contains("天星小輪") ||
+                                 resolvedMerchant.contains("輕鐵") ||
+                                 resolvedMerchant.contains("電車") ||
+                                 resolvedMerchant.contains("新渡輪") ||
                                  resolvedMerchant.contains("交通") ||
                                  resolvedMerchant.contains("進站")
 
-        let effectiveProvider: PaymentProvider
-        if resolvedMerchant.localizedCaseInsensitiveContains("octopus") || resolvedMerchant.contains("八達通") {
-            effectiveProvider = .octopus
-        } else {
-            effectiveProvider = .applePay
-        }
+        let effectiveProvider: PaymentProvider = isTransitOrOctopus ? .octopus : .applePay
 
         let needsReview = isZeroAmount
         let reviewStatus: ReviewStatus = needsReview ? .needsReview : .confirmed
@@ -333,7 +331,8 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
     }
 
     public func perform() async throws -> some IntentResult & ReturnsValue<ParsedExpenseEntity> & ProvidesDialog {
-        guard screenshotFile != nil || !recognizedLines.isEmpty else {
+        let nonBlankLines = recognizedLines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard screenshotFile != nil || !nonBlankLines.isEmpty else {
             throw IntentError.unrecognizedAmount
         }
 

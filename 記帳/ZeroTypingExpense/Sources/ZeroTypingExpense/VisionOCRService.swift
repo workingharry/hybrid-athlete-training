@@ -101,8 +101,8 @@ public final class VisionOCRService: Sendable {
                         .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*`'\""))
 
                     switch key {
-                    case "amount", "price", "cost", "val", "total", "sum", "實付金額", "實付", "实际支付", "支付金額", "扣款金額", "總計", "合計", "金額":
-                        if kvAmountRaw == nil || key == "實付金額" || key == "實付" || key == "实际支付" || key == "amount" {
+                    case "amount", "price", "cost", "val", "total", "sum", "實付金額", "實付", "实际支付", "支付金額", "扣款金額", "總計", "合計", "金額", "扣除", "扣款", "車費", "收費", "支出", "消費":
+                        if kvAmountRaw == nil || key == "實付金額" || key == "實付" || key == "实际支付" || key == "扣款金額" || key == "扣除" || key == "車費" || key == "amount" {
                             kvAmountRaw = val
                         }
                     case "merchant", "store", "payee", "shop", "vendor", "seller", "商戶名稱", "收款方", "商戶", "商家", "店舖":
@@ -179,7 +179,7 @@ public final class VisionOCRService: Sendable {
             return nil
         }
 
-        if let kvAmount = kvAmountRaw, let parsed = parseAmountString(kvAmount) {
+        if let kvAmount = kvAmountRaw, let parsed = parseAmountString(kvAmount), parsed > 0 {
             foundMinorAmounts.append(parsed)
             scoredCandidates.append((amount: parsed, score: 95, isNegative: false))
         }
@@ -187,8 +187,8 @@ public final class VisionOCRService: Sendable {
         let amountPattern = #"(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2})"#
         let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣)(?![0-9]|\.[0-9])"#
 
-        // Negative line filter keywords
-        let balanceLineKeywords = ["餘額", "卡片餘額", "$0.00"]
+        // Negative line filter keywords (§5.5)
+        let balanceLineKeywords = ["餘額", "卡片餘額"]
         let discountLineKeywords = ["優惠", "折扣", "回贈", "積分"]
 
         // Positive payment keywords
@@ -199,14 +199,30 @@ public final class VisionOCRService: Sendable {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty { continue }
 
-            // Balance lines (e.g. Octopus "餘額 $145.20") and $0.00 are completely discarded from candidate amounts
+            // Balance lines (e.g. Octopus "餘額 $145.20") are completely discarded from candidate amounts
             let isBalanceLine = balanceLineKeywords.contains { trimmed.contains($0) }
             if isBalanceLine {
                 continue
             }
 
-            // Discount lines (e.g. "優惠券折抵 -HK$27.00") should never be chosen as the paid amount
-            let isDiscountLine = discountLineKeywords.contains { trimmed.contains($0) }
+            // Discard pure $0.00 zero lines
+            let containsZeroToken = trimmed == "$0.00" || trimmed == "$0" || trimmed == "0.00" ||
+                                    trimmed.contains("$0.00") || trimmed.contains("$ 0.00") ||
+                                    trimmed.contains("HK$0.00") || trimmed.contains("HK$ 0.00")
+            let hasNonZeroDigit = trimmed.contains("1") || trimmed.contains("2") || trimmed.contains("3") ||
+                                  trimmed.contains("4") || trimmed.contains("5") || trimmed.contains("6") ||
+                                  trimmed.contains("7") || trimmed.contains("8") || trimmed.contains("9")
+            if containsZeroToken && !hasNonZeroDigit {
+                continue
+            }
+
+            // Discount lines (e.g. "優惠 $2.00", "優惠券折抵 -HK$27.00") are discarded from candidate amounts,
+            // unless the line explicitly indicates net payment (e.g. "扣除優惠後實付 $45.00")
+            let hasDiscountKeyword = discountLineKeywords.contains { trimmed.contains($0) }
+            let hasNetPaymentKeyword = trimmed.contains("實付") || trimmed.contains("實際支付") || trimmed.contains("扣款金額")
+            if hasDiscountKeyword && !hasNetPaymentKeyword {
+                continue
+            }
 
             var lineScore = 20
             if tier1PositiveKeywords.contains(where: { trimmed.contains($0) }) {
@@ -264,7 +280,7 @@ public final class VisionOCRService: Sendable {
                 if !foundMinorAmounts.contains(minor) {
                     foundMinorAmounts.append(minor)
                 }
-                scoredCandidates.append((amount: minor, score: isDiscountLine ? -100 : lineScore, isNegative: isDiscountLine))
+                scoredCandidates.append((amount: minor, score: lineScore, isNegative: false))
             }
         }
 
@@ -288,6 +304,8 @@ public final class VisionOCRService: Sendable {
             let transitMerchants: [(pattern: String, name: String)] = [
                 ("港鐵", "港鐵"),
                 ("MTR", "港鐵"),
+                ("機場快綫", "港鐵"),
+                ("輕鐵", "港鐵"),
                 ("九巴", "九巴"),
                 ("KMB", "九巴"),
                 ("城巴", "城巴"),
@@ -296,6 +314,9 @@ public final class VisionOCRService: Sendable {
                 ("NWFB", "新巴"),
                 ("天星小輪", "天星小輪"),
                 ("Star Ferry", "天星小輪"),
+                ("新渡輪", "新渡輪"),
+                ("香港電車", "香港電車"),
+                ("電車", "香港電車"),
                 ("7-Eleven", "7-Eleven"),
                 ("7-ELEVEN", "7-Eleven"),
                 ("7-11", "7-Eleven"),
@@ -458,10 +479,11 @@ public final class VisionOCRService: Sendable {
         } else if upper.contains("ALIPAY") || text.contains("支付宝") {
             return .alipayChina
         } else if upper.contains("OCTOPUS") || text.contains("八達通") ||
-                  upper.contains("MTR") || text.contains("港鐵") ||
+                  upper.contains("MTR") || text.contains("港鐵") || text.contains("機場快綫") || text.contains("輕鐵") ||
                   text.contains("九巴") || upper.contains("KMB") ||
                   text.contains("城巴") || upper.contains("CITYBUS") ||
                   text.contains("新巴") || text.contains("天星小輪") ||
+                  text.contains("新渡輪") || text.contains("電車") ||
                   (text.contains("扣除") && text.contains("餘額")) {
             return .octopus
         } else if upper.contains("PAYME") {

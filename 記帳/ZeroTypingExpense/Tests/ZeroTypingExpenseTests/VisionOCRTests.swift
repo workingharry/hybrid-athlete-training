@@ -66,8 +66,9 @@ struct VisionOCRTests {
         let result = ocrService.parseRecognizedStrings(lines)
 
         #expect(result.candidateAmountsMinor.contains(8500))
-        #expect(result.candidateAmountsMinor.contains(2700))
+        #expect(!result.candidateAmountsMinor.contains(2700))
         #expect(result.candidateAmountsMinor.contains(5800))
+        #expect(result.amountMinor == 5800)
         #expect(result.requiresManualReview == true)
         #expect(result.amountConfidence == 0.5)
     }
@@ -226,6 +227,39 @@ struct VisionOCRTests {
         #expect(result.amountMinor == 4500)
         #expect(result.currency == "HKD")
         #expect(result.merchantRaw == "7-Eleven")
+        #expect(result.candidateAmountsMinor == [4500])
+        #expect(result.requiresManualReview == false)
+        #expect(result.amountConfidence == 1.0)
+    }
+
+    @Test("Pure coupon or discount screenshot: does not parse discount amount as expense")
+    func testPureCouponDoesNotParseAsExpense() {
+        let lines = [
+            "7-Eleven",
+            "會員優惠券 $20.00"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == nil)
+        #expect(result.candidateAmountsMinor.isEmpty)
+        #expect(result.requiresManualReview == true)
+    }
+
+    @Test("Octopus reader with colon delimiters parses correctly")
+    func testOctopusReaderWithColons() {
+        let lines = [
+            "港鐵出閘",
+            "扣除：$14.50",
+            "餘額：$88.00"
+        ]
+
+        let result = ocrService.parseRecognizedStrings(lines)
+
+        #expect(result.amountMinor == 1450)
+        #expect(result.provider == .octopus)
+        #expect(result.requiresManualReview == false)
+        #expect(result.merchantRaw == "港鐵")
     }
 
     @Test("Octopus reader with low balance: ignores $5.00 balance and extracts $12.50 fare")
@@ -244,7 +278,7 @@ struct VisionOCRTests {
         #expect(result.requiresManualReview == false)
     }
 
-    @Test("Transit merchant recognition: MTR, KMB, Citybus, Star Ferry")
+    @Test("Transit merchant recognition: MTR, KMB, Citybus, Star Ferry, Tramways, Light Rail")
     func testTransitMerchantRecognition() {
         let res1 = ocrService.parseRecognizedStrings(["MTR", "收費 $9.80"])
         #expect(res1.merchantRaw == "港鐵")
@@ -257,5 +291,15 @@ struct VisionOCRTests {
         let res3 = ocrService.parseRecognizedStrings(["天星小輪", "扣款 $5.00"])
         #expect(res3.merchantRaw == "天星小輪")
         #expect(res3.amountMinor == 500)
+
+        let res4 = ocrService.parseRecognizedStrings(["香港電車", "車費 $3.00"])
+        #expect(res4.merchantRaw == "香港電車")
+        #expect(res4.amountMinor == 300)
+        #expect(res4.provider == .octopus)
+
+        let res5 = ocrService.parseRecognizedStrings(["輕鐵出站", "扣除 $4.20", "餘額 $50.00"])
+        #expect(res5.merchantRaw == "港鐵")
+        #expect(res5.amountMinor == 420)
+        #expect(res5.provider == .octopus)
     }
 }

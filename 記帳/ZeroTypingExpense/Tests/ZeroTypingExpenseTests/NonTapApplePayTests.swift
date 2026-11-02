@@ -406,10 +406,29 @@ struct NonTapApplePayTests {
             #expect(octTx?.reviewStatus == .needsReview)
             #expect(octTx?.provider == .octopus)
 
-            // Test ProcessPaymentScreenshotIntent error handling
+            // Test pure transit merchant zero amount handling without 八達通 prefix
+            let mtrZeroIntent = RecordExpenseIntent(
+                amount: 0.0,
+                merchant: "港鐵出閘",
+                sourceTransactionId: "MTR-ZERO-01"
+            )
+            let mtrResult = try await mtrZeroIntent.perform()
+            #expect(mtrResult.value?.needsReview == true)
+            #expect(mtrResult.value?.amount == 0.0)
+            let mtrUpdatedAll = await SharedTransactionEngine.shared.getAllTransactions()
+            let mtrTx = mtrUpdatedAll.first { $0.sourceTransactionId == "MTR-ZERO-01" }
+            #expect(mtrTx?.reviewStatus == .needsReview)
+            #expect(mtrTx?.provider == .octopus)
+
+            // Test ProcessPaymentScreenshotIntent error handling (empty lines or blank input)
             let emptyScreenshotIntent = ProcessPaymentScreenshotIntent()
             await #expect(throws: ProcessPaymentScreenshotIntent.IntentError.unrecognizedAmount) {
                 _ = try await emptyScreenshotIntent.perform()
+            }
+
+            let blankLinesIntent = ProcessPaymentScreenshotIntent(recognizedLines: ["   ", "\n"])
+            await #expect(throws: ProcessPaymentScreenshotIntent.IntentError.unrecognizedAmount) {
+                _ = try await blankLinesIntent.perform()
             }
         }
     }
