@@ -204,7 +204,11 @@ public struct RecordExpenseIntent: AppIntent {
             parsedType = inferredTxType ?? .payment
         }
 
-        let isZeroAmount = (finalAmountMinor == 0)
+        // Zero-Amount Hard Rejection: 當出現 0 元是不算入記錄
+        guard finalAmountMinor > 0 else {
+            throw IntentError.zeroAmountIgnored
+        }
+
         let isTransitOrOctopus = resolvedMerchant.localizedCaseInsensitiveContains("octopus") ||
                                  resolvedMerchant.contains("八達通") ||
                                  resolvedMerchant.localizedCaseInsensitiveContains("mtr") ||
@@ -231,9 +235,8 @@ public struct RecordExpenseIntent: AppIntent {
             idempotencyKey = "\(effectiveProvider.rawValue)_\(cardSuffix)_\(resolvedMerchant)_\(finalAmountMinor)_\(Int(date.timeIntervalSince1970 / 60))"
         }
 
-        let needsReview = isZeroAmount
-        let reviewStatus: ReviewStatus = needsReview ? .needsReview : .confirmed
-        let paymentStatus: PaymentStatus = needsReview ? .pending : .completed
+        let reviewStatus: ReviewStatus = .confirmed
+        let paymentStatus: PaymentStatus = .completed
 
         let transaction = TransactionEntity(
             idempotencyKey: idempotencyKey,
@@ -251,7 +254,7 @@ public struct RecordExpenseIntent: AppIntent {
             paymentStatus: paymentStatus,
             duplicateStatus: .unique,
             transactionType: parsedType,
-            amountConfidence: isZeroAmount ? 0.0 : 1.0,
+            amountConfidence: 1.0,
             currencyConfidence: 1.0,
             merchantConfidence: 0.95
         )
@@ -268,35 +271,24 @@ public struct RecordExpenseIntent: AppIntent {
             currency: resolvedCurrency,
             merchant: resolvedMerchant,
             paymentMethod: effectiveProvider.rawValue,
-            needsReview: needsReview
+            needsReview: false
         )
-
-        if isZeroAmount {
-            if isTransitOrOctopus {
-                return .result(
-                    value: entity,
-                    dialog: "八達通 / 交通卡感應金額為 $0（受限於 Apple 離線交通協定），已建立待核對項目，請在待審核區手動補錄或於捷徑使用「詢問輸入」"
-                )
-            } else {
-                return .result(
-                    value: entity,
-                    dialog: "已記錄待確認交易（金額為 0，請確認捷徑是否已正確綁定「捷徑輸入 ➔ 金額」）"
-                )
-            }
-        }
 
         let displayAmount = String(format: "%.2f", parsedAmount)
         return .result(value: entity, dialog: "已自動入帳 \(resolvedCurrency)$\(displayAmount) 於 \(resolvedMerchant)")
     }
 
-    public enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {
+    public enum IntentError: Swift.Error, Sendable, CustomLocalizedStringResourceConvertible {
         case invalidAmount
+        case zeroAmountIgnored
         case unrecognizedAmount
 
         public var localizedStringResource: LocalizedStringResource {
             switch self {
             case .invalidAmount:
                 return "交易金額必須大於或等於 0"
+            case .zeroAmountIgnored:
+                return "金額為 0 元，已忽略不計入記錄"
             case .unrecognizedAmount:
                 return "未能辨識有效交易金額，請手動確認或輸入"
             }
@@ -353,6 +345,10 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             }
         } else {
             ocrResult = VisionOCRService.shared.parseRecognizedStrings(recognizedLines)
+        }
+
+        if let minor = ocrResult.amountMinor, minor == 0 {
+            throw RecordExpenseIntent.IntentError.zeroAmountIgnored
         }
 
         let isAmountMissingOrZero = (ocrResult.amountMinor == nil || ocrResult.amountMinor == 0)
@@ -429,6 +425,7 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
     public enum IntentError: Swift.Error, CustomLocalizedStringResourceConvertible {
         case unrecognizedAmount
         case invalidImageData
+        case zeroAmountIgnored
 
         public var localizedStringResource: LocalizedStringResource {
             switch self {
@@ -436,6 +433,8 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
                 return "截圖未辨識到有效金額，請手動確認或輸入"
             case .invalidImageData:
                 return "截圖圖片檔案損壞或無法讀取"
+            case .zeroAmountIgnored:
+                return "金額為 0 元，已忽略不計入記錄"
             }
         }
     }
@@ -475,6 +474,10 @@ public struct ParseClipboardExpenseIntent: AppIntent {
             let canon = (ocrResult.merchantRaw ?? "unknown").replacingOccurrences(of: " ", with: "_")
             let minuteBucket = Int(Date().timeIntervalSince1970 / 60)
             idempotencyKey = "clipboard_\(canon)_\(ocrResult.amountMinor ?? 0)_\(minuteBucket)"
+        }
+
+        if let minor = ocrResult.amountMinor, minor == 0 {
+            throw RecordExpenseIntent.IntentError.zeroAmountIgnored
         }
 
         let isAmountMissingOrZero = (ocrResult.amountMinor == nil || ocrResult.amountMinor == 0)
@@ -549,7 +552,10 @@ public struct QuickRecordExpenseIntent: AppIntent {
     }
 
     public func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard amount.isFinite, amount >= 0 else {
+        guard amount.isFinite, amount > 0 else {
+            if amount == 0 {
+                throw RecordExpenseIntent.IntentError.zeroAmountIgnored
+            }
             throw RecordExpenseIntent.IntentError.invalidAmount
         }
 
@@ -613,19 +619,22 @@ public struct ParseAIExpenseIntent: AppIntent {
         let lines = text.components(separatedBy: .newlines)
         let ocrResult = VisionOCRService.shared.parseRecognizedStrings(lines)
 
+        guard let minor = ocrResult.amountMinor, minor > 0 else {
+            throw RecordExpenseIntent.IntentError.zeroAmountIgnored
+        }
+
         let effectiveTxId = ocrResult.sourceTransactionId ?? "AI-\(UUID().uuidString.prefix(8))"
         let idempotencyKey: String
         if let stid = ocrResult.sourceTransactionId, !stid.isEmpty {
-            idempotencyKey = "appleIntelligence_\(stid)_\(ocrResult.amountMinor ?? 0)"
+            idempotencyKey = "appleIntelligence_\(stid)_\(minor)"
         } else {
             let canon = (ocrResult.merchantRaw ?? "unknown").replacingOccurrences(of: " ", with: "_")
             let minuteBucket = Int(Date().timeIntervalSince1970 / 60)
-            idempotencyKey = "appleIntelligence_\(canon)_\(ocrResult.amountMinor ?? 0)_\(minuteBucket)"
+            idempotencyKey = "appleIntelligence_\(canon)_\(minor)_\(minuteBucket)"
         }
 
-        let isAmountMissingOrZero = (ocrResult.amountMinor == nil || ocrResult.amountMinor == 0)
-        let reviewStatus: ReviewStatus = (isAmountMissingOrZero || ocrResult.requiresManualReview) ? .needsReview : .confirmed
-        let paymentStatus: PaymentStatus = isAmountMissingOrZero ? .pending : .completed
+        let reviewStatus: ReviewStatus = ocrResult.requiresManualReview ? .needsReview : .confirmed
+        let paymentStatus: PaymentStatus = .completed
 
         let transaction = TransactionEntity(
             idempotencyKey: idempotencyKey,
@@ -635,10 +644,10 @@ public struct ParseAIExpenseIntent: AppIntent {
             sourceTransactionId: effectiveTxId,
             merchantRaw: ocrResult.merchantRaw,
             merchantCanonical: ocrResult.merchantRaw,
-            amountMinor: ocrResult.amountMinor,
+            amountMinor: minor,
             candidateAmountsMinor: ocrResult.candidateAmountsMinor,
             currency: ocrResult.currency,
-            ledgerAmountMinor: ocrResult.amountMinor,
+            ledgerAmountMinor: minor,
             ledgerCurrency: ocrResult.currency,
             reviewStatus: reviewStatus,
             paymentStatus: paymentStatus,
@@ -655,7 +664,7 @@ public struct ParseAIExpenseIntent: AppIntent {
         _ = try await engine.ingestTransaction(transaction)
         try? await ZeroTypingDiskStorage.shared.persistTransaction(transaction)
 
-        let parsedAmount = Double(ocrResult.amountMinor ?? 0) / 100.0
+        let parsedAmount = Double(minor) / 100.0
         let parsedMerchant = ocrResult.merchantRaw ?? "Unknown Merchant"
         let entity = ParsedExpenseEntity(
             id: effectiveTxId,
@@ -666,12 +675,8 @@ public struct ParseAIExpenseIntent: AppIntent {
             needsReview: reviewStatus == .needsReview
         )
 
-        if let minor = ocrResult.amountMinor, minor > 0 {
-            let major = Double(minor) / 100.0
-            return .result(value: entity, dialog: "已由 AI 文字自動入帳 \(ocrResult.currency)$\(String(format: "%.2f", major)) 於 \(parsedMerchant)")
-        } else {
-            return .result(value: entity, dialog: "AI 文字未辨識到明確金額，已建立待審核交易")
-        }
+        let major = Double(minor) / 100.0
+        return .result(value: entity, dialog: "已由 AI 文字自動入帳 \(ocrResult.currency)$\(String(format: "%.2f", major)) 於 \(parsedMerchant)")
     }
 }
 

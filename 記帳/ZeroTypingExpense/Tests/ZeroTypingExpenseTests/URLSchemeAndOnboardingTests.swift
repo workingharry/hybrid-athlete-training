@@ -83,7 +83,7 @@ struct URLSchemeAndOnboardingTests {
         #expect(transactions.first?.merchantRaw == "Uniqlo")
     }
 
-    @Test("AppState handles incoming URL with missing or zero amount safely")
+    @Test("AppState handles incoming URL with zero amount by ignoring and returning error")
     func testAppStateHandlesMissingAmountURL() async throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -97,13 +97,13 @@ struct URLSchemeAndOnboardingTests {
         let result = await appState.handleIncomingURL(url)
 
         switch result {
-        case .recorded(let tx):
-            #expect(tx.amountMinor == 0)
-            #expect(tx.reviewStatus == .needsReview)
-            #expect(tx.paymentStatus == .pending)
+        case .error(let msg):
+            #expect(msg.contains("0 元"))
         default:
-            Issue.record("Expected .recorded result for zero amount hold")
+            Issue.record("Expected .error result for zero amount rejection")
         }
+        let all = await engine.getAllTransactions()
+        #expect(all.isEmpty)
     }
 
     @Test("RecordExpenseIntent fallback parsing when amount is zero but notes contains amount")

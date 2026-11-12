@@ -500,9 +500,12 @@ public final class AppState: ObservableObject {
 
         switch action {
         case .record(let amountMinor, let currency, let merchant, let categoryName, _):
+            guard amountMinor > 0 else {
+                self.urlActionToastMessage = "金額為 0 元，已忽略不計入記錄"
+                return .error("金額為 0 元，已忽略不計入記錄")
+            }
             let effectiveTxId = "URL-\(UUID().uuidString.prefix(8))"
             let idempotencyKey = "url_\(effectiveTxId)_\(amountMinor)"
-            let isZero = (amountMinor == 0)
 
             // Resolve category if matching name exists, default to othersCategoryId for zero-typing convenience
             var resolvedCatId: UUID = AppState.othersCategoryId
@@ -525,8 +528,8 @@ public final class AppState: ObservableObject {
                 ledgerAmountMinor: amountMinor,
                 ledgerCurrency: currency,
                 categoryId: resolvedCatId,
-                reviewStatus: isZero ? .needsReview : .confirmed,
-                paymentStatus: isZero ? .pending : .completed,
+                reviewStatus: .confirmed,
+                paymentStatus: .completed,
                 duplicateStatus: .unique,
                 transactionType: .payment,
                 amountConfidence: 1.0,
@@ -537,9 +540,7 @@ public final class AppState: ObservableObject {
             do {
                 try await ingestTransaction(tx)
                 let displayAmount = String(format: "%.2f", Double(amountMinor) / 100.0)
-                let banner = isZero
-                    ? "已透過快捷連結建立待審核交易：\(merchant)"
-                    : "已透過快捷連結入帳：\(currency)$\(displayAmount) 於 \(merchant)"
+                let banner = "已透過快捷連結入帳：\(currency)$\(displayAmount) 於 \(merchant)"
                 self.urlActionToastMessage = banner
                 return .recorded(tx)
             } catch {
@@ -552,7 +553,10 @@ public final class AppState: ObservableObject {
             if !clipText.isEmpty {
                 let lines = clipText.components(separatedBy: .newlines)
                 let ocrResult = VisionOCRService.shared.parseRecognizedStrings(lines)
-                let minor = ocrResult.amountMinor ?? 0
+                guard let minor = ocrResult.amountMinor, minor > 0 else {
+                    self.urlActionToastMessage = "金額為 0 元，已忽略不計入記錄"
+                    return .error("金額為 0 元，已忽略不計入記錄")
+                }
                 let effectiveTxId = ocrResult.sourceTransactionId ?? "CLIP-\(UUID().uuidString.prefix(8))"
                 let tx = TransactionEntity(
                     idempotencyKey: "url_clip_\(effectiveTxId)_\(minor)",
@@ -566,8 +570,8 @@ public final class AppState: ObservableObject {
                     currency: ocrResult.currency,
                     ledgerAmountMinor: minor,
                     ledgerCurrency: ocrResult.currency,
-                    reviewStatus: (minor == 0 || ocrResult.requiresManualReview) ? .needsReview : .confirmed,
-                    paymentStatus: minor == 0 ? .pending : .completed,
+                    reviewStatus: ocrResult.requiresManualReview ? .needsReview : .confirmed,
+                    paymentStatus: .completed,
                     duplicateStatus: .unique,
                     transactionType: .payment,
                     amountConfidence: ocrResult.amountConfidence,

@@ -392,19 +392,17 @@ struct NonTapApplePayTests {
             let all = await SharedTransactionEngine.shared.getAllTransactions()
             #expect(all.contains { $0.sourceTransactionId == "STB-INTENT-01" })
 
-            // Test Octopus transit zero amount handling
+            // Test Octopus transit zero amount handling (當出現 0 元是不算入記錄)
             let octopusZeroIntent = RecordExpenseIntent(
                 amount: 0.0,
                 merchant: "八達通 - 港鐵出閘",
                 sourceTransactionId: "OCTOPUS-ZERO-01"
             )
-            let octResult = try await octopusZeroIntent.perform()
-            #expect(octResult.value?.needsReview == true)
-            #expect(octResult.value?.amount == 0.0)
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await octopusZeroIntent.perform()
+            }
             let updatedAll = await SharedTransactionEngine.shared.getAllTransactions()
-            let octTx = updatedAll.first { $0.sourceTransactionId == "OCTOPUS-ZERO-01" }
-            #expect(octTx?.reviewStatus == .needsReview)
-            #expect(octTx?.provider == .octopus)
+            #expect(!updatedAll.contains { $0.sourceTransactionId == "OCTOPUS-ZERO-01" })
 
             // Test pure transit merchant zero amount handling without 八達通 prefix
             let mtrZeroIntent = RecordExpenseIntent(
@@ -412,13 +410,11 @@ struct NonTapApplePayTests {
                 merchant: "港鐵出閘",
                 sourceTransactionId: "MTR-ZERO-01"
             )
-            let mtrResult = try await mtrZeroIntent.perform()
-            #expect(mtrResult.value?.needsReview == true)
-            #expect(mtrResult.value?.amount == 0.0)
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await mtrZeroIntent.perform()
+            }
             let mtrUpdatedAll = await SharedTransactionEngine.shared.getAllTransactions()
-            let mtrTx = mtrUpdatedAll.first { $0.sourceTransactionId == "MTR-ZERO-01" }
-            #expect(mtrTx?.reviewStatus == .needsReview)
-            #expect(mtrTx?.provider == .octopus)
+            #expect(!mtrUpdatedAll.contains { $0.sourceTransactionId == "MTR-ZERO-01" })
 
             // Test ProcessPaymentScreenshotIntent error handling (empty lines or blank input)
             let emptyScreenshotIntent = ProcessPaymentScreenshotIntent()
@@ -430,6 +426,67 @@ struct NonTapApplePayTests {
             await #expect(throws: ProcessPaymentScreenshotIntent.IntentError.unrecognizedAmount) {
                 _ = try await blankLinesIntent.perform()
             }
+
+            // Test QuickRecordExpenseIntent rejects 0 amount
+            let zeroQuickIntent = QuickRecordExpenseIntent(amount: 0.0, merchant: "TestZero")
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await zeroQuickIntent.perform()
+            }
+
+            // Test ParseAIExpenseIntent rejects 0 amount
+            let zeroAIIntent = ParseAIExpenseIntent(text: "amount: 0 hkd, merchant: FreeCoffee")
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await zeroAIIntent.perform()
+            }
+
+            // Test ZeroTypingDiskStorage drops zero amount defensively
+            let zeroTx = TransactionEntity(
+                idempotencyKey: "zero_test_defensive",
+                provider: .applePay,
+                captureChannel: .walletAutomation,
+                amountMinor: 0
+            )
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let tempStorageURL = tempDir.appendingPathComponent("zero_defensive_storage.json")
+            try await ZeroTypingDiskStorage.shared.persistTransaction(zeroTx, to: tempStorageURL)
+            let loaded = try await ZeroTypingDiskStorage.shared.loadEnvelope(from: tempStorageURL)
+            #expect(!loaded.transactions.contains { $0.idempotencyKey == "zero_test_defensive" })
+        }
+    }
+
+    @Test("ATM-19: Zero Amount Hard Rejection across all intents and storage")
+    func testZeroAmountHardRejectionAcrossIntentsAndStorage() async throws {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            // 1. RecordExpenseIntent with 0.0 throws zeroAmountIgnored
+            let zeroIntent = RecordExpenseIntent(amount: 0.0, merchant: "Zero Merchant")
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await zeroIntent.perform()
+            }
+
+            // 2. ParseAIExpenseIntent with 0.0 throws zeroAmountIgnored
+            let zeroAI = ParseAIExpenseIntent(text: "amount: 0, merchant: Zero AI")
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await zeroAI.perform()
+            }
+
+            // 3. QuickRecordExpenseIntent with 0.0 throws zeroAmountIgnored
+            let zeroQuick = QuickRecordExpenseIntent(amount: 0.0, merchant: "Zero Quick")
+            await #expect(throws: RecordExpenseIntent.IntentError.zeroAmountIgnored) {
+                _ = try await zeroQuick.perform()
+            }
+
+            // 4. ZeroTypingDiskStorage defensive zero drop
+            let zeroTx = TransactionEntity(
+                idempotencyKey: "zero_tx_guard_test",
+                provider: .applePay,
+                captureChannel: .walletAutomation,
+                amountMinor: 0
+            )
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let tempStorage = tempDir.appendingPathComponent("zero_guard.json")
+            try await ZeroTypingDiskStorage.shared.persistTransaction(zeroTx, to: tempStorage)
+            let env = try await ZeroTypingDiskStorage.shared.loadEnvelope(from: tempStorage)
+            #expect(!env.transactions.contains { $0.idempotencyKey == "zero_tx_guard_test" })
         }
     }
 }

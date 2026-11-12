@@ -94,6 +94,10 @@ public actor ZeroTypingDiskStorage {
 
     /// Persist a single transaction safely into ZeroTypingStorage.json
     public func persistTransaction(_ transaction: TransactionEntity, to url: URL = defaultStorageURL) throws {
+        // Defensive check: Zero or negative amounts must not be persisted into storage
+        if let minor = transaction.amountMinor, minor <= 0 {
+            return
+        }
         try withFileLock(for: url) {
             var envelope: AppStorageEnvelope
             if fileManager.fileExists(atPath: url.path) {
