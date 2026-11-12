@@ -437,4 +437,62 @@ struct VisionOCRTests {
         #expect(resHKeToll.merchantRaw == "易通行 HKeToll")
         #expect(resHKeToll.provider == .octopus)
     }
+
+    @Test("Receipt date extraction: parses ISO, slash, and Chinese date formats")
+    func testReceiptDateExtraction() {
+        let linesISO = [
+            "Pacific Coffee",
+            "日期：2026-10-25 14:32:05",
+            "實付金額 HK$ 45.00"
+        ]
+        let resISO = ocrService.parseRecognizedStrings(linesISO)
+        #expect(resISO.transactionDate != nil)
+        let calendar = Calendar(identifier: .gregorian)
+        let tz = TimeZone(identifier: "Asia/Hong_Kong") ?? .current
+        let comps = calendar.dateComponents(in: tz, from: resISO.transactionDate!)
+        #expect(comps.year == 2026)
+        #expect(comps.month == 10)
+        #expect(comps.day == 25)
+        #expect(comps.hour == 14)
+        #expect(comps.minute == 32)
+        #expect(comps.second == 5)
+
+        let linesSlash = [
+            "Starbucks",
+            "交易時間: 2026/08/15 09:15",
+            "HK$ 38.00"
+        ]
+        let resSlash = ocrService.parseRecognizedStrings(linesSlash)
+        #expect(resSlash.transactionDate != nil)
+        let slashComps = calendar.dateComponents(in: tz, from: resSlash.transactionDate!)
+        #expect(slashComps.year == 2026)
+        #expect(slashComps.month == 8)
+        #expect(slashComps.day == 15)
+        #expect(slashComps.hour == 9)
+        #expect(slashComps.minute == 15)
+
+        let linesChinese = [
+            "7-Eleven",
+            "2026年05月20日 18:40:00",
+            "實付 $12.50"
+        ]
+        let resChinese = ocrService.parseRecognizedStrings(linesChinese)
+        #expect(resChinese.transactionDate != nil)
+        let chComps = calendar.dateComponents(in: tz, from: resChinese.transactionDate!)
+        #expect(chComps.year == 2026)
+        #expect(chComps.month == 5)
+        #expect(chComps.day == 20)
+    }
+
+    @Test("Provider detection: Unrecognized provider safely falls back to .other instead of .applePay")
+    func testUnrecognizedProviderFallbackToOther() {
+        let lines = [
+            "Unknown Merchant",
+            "實付 HK$ 50.00",
+            "完成"
+        ]
+        let result = ocrService.parseRecognizedStrings(lines)
+        #expect(result.provider == .other)
+        #expect(result.amountMinor == 5000)
+    }
 }

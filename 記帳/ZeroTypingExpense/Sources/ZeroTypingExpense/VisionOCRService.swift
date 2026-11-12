@@ -52,6 +52,58 @@ public struct OCRResult: Sendable, Equatable {
     }
 }
 
+// MARK: - Pre-compiled Regex Registry (§Algorithm P1 ROI)
+internal enum VisionRegexRegistry: Sendable {
+    static let cmdPrefix = try! NSRegularExpression(pattern: #"(?i)^cmd\|?"#)
+    static let kvPair = try! NSRegularExpression(
+        pattern: #"(?i)(?:^|[,;\n{\[])\s*[\*_\-`'"]*([A-Za-z_\u4e00-\u9fa5]+(?:[ \t\/\-][A-Za-z0-9_\u4e00-\u9fa5]+)*)[\*_\-`'"]*\s*[:=：]\s*[\*`'"]*([^,;\n}\]]+?)[\*`'"]*(?=[,;\n}\]]|$)"#
+    )
+    static let currencyStrip = try! NSRegularExpression(
+        pattern: #"(?i)HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$|港幣|元|蚊"#
+    )
+    static let dotMatrixO1 = try! NSRegularExpression(pattern: #"(?<=\.)[Oo]{1,2}\b"#)
+    static let dotMatrixO2 = try! NSRegularExpression(pattern: #"(?<=\.[0-9])[Oo]\b"#)
+    static let dotMatrixO3 = try! NSRegularExpression(pattern: #"(?<=\.)[Oo](?=[0-9])"#)
+    static let balanceClause = try! NSRegularExpression(
+        pattern: #"(?i)(?:餘額|卡片餘額|現有結餘|結餘|Remaining(?:\s*Value)?|Card\s*Balance|Balance)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
+    )
+    static let discountClause = try! NSRegularExpression(
+        pattern: #"(?i)(?:優惠券折抵|優惠折抵|會員優惠|優惠|折扣|折抵|回贈|積分|減免|Discount|Coupon|Promo|Voucher)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
+    )
+    static let cantoneseDetailed = try! NSRegularExpression(pattern: #"([0-9]{1,6})\s*蚊\s*([0-9]{1,2})\s*毫"#)
+    static let cantoneseHalf = try! NSRegularExpression(pattern: #"([0-9]{1,6})\s*蚊半"#)
+    static let cantoneseSimple = try! NSRegularExpression(pattern: #"([0-9]{1,6}(?:\.[0-9]{1,2})?)\s*蚊"#)
+    static let cantoneseCent = try! NSRegularExpression(pattern: #"(?<![0-9])([0-9]{1,2})\s*毫"#)
+    static let decimalAmount = try! NSRegularExpression(
+        pattern: #"(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2})"#
+    )
+    static let intCurrency = try! NSRegularExpression(
+        pattern: #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣|蚊)(?![0-9]|\.[0-9])"#
+    )
+    static let connective1 = try! NSRegularExpression(pattern: #"(?i)(?:於|在|at|to)\s*([A-Za-z0-9_\u4e00-\u9fa5\s&'. -]{2,35})"#)
+    static let connective2 = try! NSRegularExpression(pattern: #"(?i)([A-Za-z0-9_\u4e00-\u9fa5\s&'. -]{2,35})\s+(?:於|在)\s+"#)
+    static let merchantStripCurrency = try! NSRegularExpression(pattern: #"(?i)HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$|港幣|元"#)
+    static let merchantStripWords = try! NSRegularExpression(pattern: #"(?i)amount|price|merchant|store|payee|cost|消費|付款|支出|扣款|成功"#)
+    static let merchantStripNumbers = try! NSRegularExpression(pattern: #"[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+"#)
+    static let txId = try! NSRegularExpression(pattern: #"(?i)(?:交易號|訂單號|流水號|單號|txid|transaction|order)[:：\s]*([A-Za-z0-9_-]{8,})"#)
+    static let trailingAction = try! NSRegularExpression(pattern: #"(?i)[\s]*(?:消費了|消費|買了|支付了|扣款|付款|結帳|買早餐|吃午餐|paid|paying|spent|for|了)[\s]*$"#)
+    static let trailingPunctuation = try! NSRegularExpression(pattern: #"[，,。！!？?、;；].*$"#)
+
+    // Receipt Date Patterns
+    static let isoDate = try! NSRegularExpression(pattern: #"\b(20[2-3][0-9])[-.](0[1-9]|1[0-2])[-.](0[1-9]|[12][0-9]|3[01])\b"#)
+    static let slashYearFirst = try! NSRegularExpression(pattern: #"\b(20[2-3][0-9])/(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])\b"#)
+    static let commonwealthDate = try! NSRegularExpression(pattern: #"\b(0[1-9]|[12][0-9]|3[01])[/-](0[1-9]|1[0-2])/(20[2-3][0-9])\b"#)
+    static let chineseDate = try! NSRegularExpression(pattern: #"(20[2-3][0-9])\s*年\s*(1[0-2]|0?[1-9])\s*月\s*([12][0-9]|3[01]|0?[1-9])\s*日?"#)
+    static let timePattern = try! NSRegularExpression(pattern: #"\b([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\b"#)
+}
+
+extension NSRegularExpression {
+    func replace(in input: String, with template: String = "") -> String {
+        let ns = input as NSString
+        return self.stringByReplacingMatches(in: input, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: template)
+    }
+}
+
 public final class VisionOCRService: Sendable {
     public static let shared = VisionOCRService()
 
@@ -127,17 +179,15 @@ public final class VisionOCRService: Sendable {
         var kvCurrencyRaw: String?
         var kvTxIdRaw: String?
 
-        let kvPattern = #"(?i)(?:^|[,;\n{\[])\s*[\*_\-`'"]*([A-Za-z_\u4e00-\u9fa5]+(?:[ \t\/\-][A-Za-z0-9_\u4e00-\u9fa5]+)*)[\*_\-`'"]*\s*[:=：]\s*[\*`'"]*([^,;\n}\]]+?)[\*`'"]*(?=[,;\n}\]]|$)"#
-        if let kvRegex = try? NSRegularExpression(pattern: kvPattern, options: []) {
-            let nsText = fullText as NSString
-            let matches = kvRegex.matches(in: fullText, range: NSRange(location: 0, length: nsText.length))
-            for match in matches {
-                if match.numberOfRanges >= 3 {
-                    let rawKey = nsText.substring(with: match.range(at: 1))
-                        .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*_-`'\""))
-                        .lowercased()
-                    let val = nsText.substring(with: match.range(at: 2))
-                        .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*`'\""))
+        let nsText = fullText as NSString
+        let matches = VisionRegexRegistry.kvPair.matches(in: fullText, range: NSRange(location: 0, length: nsText.length))
+        for match in matches {
+            if match.numberOfRanges >= 3 {
+                let rawKey = nsText.substring(with: match.range(at: 1))
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*_-`'\""))
+                    .lowercased()
+                let val = nsText.substring(with: match.range(at: 2))
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n*`'\""))
 
                     let keyTokens = rawKey.components(separatedBy: CharacterSet(charactersIn: " /-_")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
 
@@ -169,7 +219,6 @@ public final class VisionOCRService: Sendable {
                     }
                 }
             }
-        }
 
         // Multi-line Key-Value extraction: Line i has key label, Line i+1 has the value
         if kvAmountRaw == nil || kvMerchantRaw == nil {
@@ -238,14 +287,13 @@ public final class VisionOCRService: Sendable {
         var scoredCandidates: [(amount: Int64, score: Int, isNegative: Bool)] = []
 
         func parseAmountString(_ str: String) -> Int64? {
-            var cleaned = str
-                .replacingOccurrences(of: "(?i)HK\\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\\$|港幣|元|蚊", with: "", options: .regularExpression)
+            var cleaned = VisionRegexRegistry.currencyStrip.replace(in: str)
                 .replacingOccurrences(of: ",", with: "")
                 .trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'*`"))
 
             // Dot-matrix letter O/o confusion fix in decimal part: e.g. .OO -> .00, .O5 -> .05, .5O -> .50
-            cleaned = cleaned.replacingOccurrences(of: #"(?<=\.)[Oo]{1,2}\b"#, with: "00", options: .regularExpression)
-            cleaned = cleaned.replacingOccurrences(of: #"(?<=\.[0-9])[Oo]\b"#, with: "0", options: .regularExpression)
+            cleaned = VisionRegexRegistry.dotMatrixO1.replace(in: cleaned, with: "00")
+            cleaned = VisionRegexRegistry.dotMatrixO2.replace(in: cleaned, with: "0")
 
             if cleaned.contains(".") {
                 if let decimal = Decimal(string: cleaned) {
@@ -261,15 +309,6 @@ public final class VisionOCRService: Sendable {
             foundMinorAmounts.append(parsed)
             scoredCandidates.append((amount: parsed, score: 95, isNegative: false))
         }
-
-        let amountPattern = #"(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*([0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+\.[0-9]{1,2})"#
-        let intCurrencyPattern = #"(?i)(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)\s*([0-9]{1,7})(?![0-9]|\.[0-9])|(?<![0-9])([0-9]{1,7})\s*(?:HKD|HK\$|USD|CNY|RMB|EUR|GBP|JPY|元|港幣|蚊)(?![0-9]|\.[0-9])"#
-
-        // Cantonese colloquial currency units (e.g. 12蚊5毫, 12蚊半, 12.5蚊, 10蚊, 5毫)
-        let cantoneseDetailedPattern = #"([0-9]{1,6})\s*蚊\s*([0-9]{1,2})\s*毫"#
-        let cantoneseHalfPattern = #"([0-9]{1,6})\s*蚊半"#
-        let cantoneseSimplePattern = #"([0-9]{1,6}(?:\.[0-9]{1,2})?)\s*蚊"#
-        let cantoneseCentPattern = #"(?<![0-9])([0-9]{1,2})\s*毫"#
 
         // Balance & Discount filters
         let balanceKeywords = ["餘額", "卡片餘額", "現有結餘", "結餘", "balance", "remaining"]
@@ -300,20 +339,18 @@ public final class VisionOCRService: Sendable {
 
             // On mixed lines (e.g. "扣除 $12.50 餘額 $145.20" or "扣除 HK$14.50，卡片餘額為 HK$128.50"), strip balance clause so balance amount is never extracted
             if hasBalanceKeyword && hasPositiveKeyword {
-                let balanceClausePattern = #"(?i)(?:餘額|卡片餘額|現有結餘|結餘|Remaining(?:\s*Value)?|Card\s*Balance|Balance)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
-                trimmed = trimmed.replacingOccurrences(of: balanceClausePattern, with: "", options: .regularExpression)
+                trimmed = VisionRegexRegistry.balanceClause.replace(in: trimmed)
             }
 
             // Strip discount clause on mixed lines (e.g. "原價 $85.00 折扣 $27.00 實付 $58.00")
             if hasDiscountKeyword && hasPositiveKeyword {
-                let discountClausePattern = #"(?i)(?:優惠券折抵|優惠折抵|會員優惠|優惠|折扣|折抵|回贈|積分|減免|Discount|Coupon|Promo|Voucher)[\s:：為是is]*[+-]?(?:HK\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\$)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?"#
-                trimmed = trimmed.replacingOccurrences(of: discountClausePattern, with: "", options: .regularExpression)
+                trimmed = VisionRegexRegistry.discountClause.replace(in: trimmed)
             }
 
             // Dot-matrix letter O/o confusion fix in decimal numbers: e.g. .OO -> .00, .O5 -> .05, .5O -> .50
-            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.)[Oo]{1,2}\b"#, with: "00", options: .regularExpression)
-            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.[0-9])[Oo]\b"#, with: "0", options: .regularExpression)
-            trimmed = trimmed.replacingOccurrences(of: #"(?<=\.)[Oo](?=[0-9])"#, with: "0", options: .regularExpression)
+            trimmed = VisionRegexRegistry.dotMatrixO1.replace(in: trimmed, with: "00")
+            trimmed = VisionRegexRegistry.dotMatrixO2.replace(in: trimmed, with: "0")
+            trimmed = VisionRegexRegistry.dotMatrixO3.replace(in: trimmed, with: "0")
 
             // Discard pure $0.00 zero lines
             let containsZeroToken = trimmed == "$0.00" || trimmed == "$0" || trimmed == "0.00" ||
@@ -338,60 +375,50 @@ public final class VisionOCRService: Sendable {
             var lineFoundMinors: [Int64] = []
 
             // Extract Cantonese units first (e.g. 12蚊5毫, 12蚊半, 12.5蚊, 5毫)
-            if let regex = try? NSRegularExpression(pattern: cantoneseDetailedPattern, options: []) {
-                let nsLine = trimmed as NSString
-                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 2 {
-                    let dollarStr = nsLine.substring(with: match.range(at: 1))
-                    let centStr = nsLine.substring(with: match.range(at: 2))
-                    if let d = Int64(dollarStr), let c = Int64(centStr) {
-                        let minor = d * 100 + c * 10
-                        if minor > 0 && !lineFoundMinors.contains(minor) {
-                            lineFoundMinors.append(minor)
-                        }
+            let nsLine = trimmed as NSString
+            let lineRange = NSRange(location: 0, length: nsLine.length)
+
+            if let match = VisionRegexRegistry.cantoneseDetailed.firstMatch(in: trimmed, range: lineRange), match.numberOfRanges > 2 {
+                let dollarStr = nsLine.substring(with: match.range(at: 1))
+                let centStr = nsLine.substring(with: match.range(at: 2))
+                if let d = Int64(dollarStr), let c = Int64(centStr) {
+                    let minor = d * 100 + c * 10
+                    if minor > 0 && !lineFoundMinors.contains(minor) {
+                        lineFoundMinors.append(minor)
                     }
                 }
             }
-            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseHalfPattern, options: []) {
-                let nsLine = trimmed as NSString
-                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
-                    let dollarStr = nsLine.substring(with: match.range(at: 1))
-                    if let d = Int64(dollarStr) {
-                        let minor = d * 100 + 50
-                        if minor > 0 && !lineFoundMinors.contains(minor) {
-                            lineFoundMinors.append(minor)
-                        }
+            if lineFoundMinors.isEmpty, let match = VisionRegexRegistry.cantoneseHalf.firstMatch(in: trimmed, range: lineRange), match.numberOfRanges > 1 {
+                let dollarStr = nsLine.substring(with: match.range(at: 1))
+                if let d = Int64(dollarStr) {
+                    let minor = d * 100 + 50
+                    if minor > 0 && !lineFoundMinors.contains(minor) {
+                        lineFoundMinors.append(minor)
                     }
                 }
             }
-            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseSimplePattern, options: []) {
-                let nsLine = trimmed as NSString
-                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
-                    let amtStr = nsLine.substring(with: match.range(at: 1))
-                    if let dec = Decimal(string: amtStr) {
-                        let minor = NSDecimalNumber(decimal: dec * 100).int64Value
-                        if minor > 0 && !lineFoundMinors.contains(minor) {
-                            lineFoundMinors.append(minor)
-                        }
+            if lineFoundMinors.isEmpty, let match = VisionRegexRegistry.cantoneseSimple.firstMatch(in: trimmed, range: lineRange), match.numberOfRanges > 1 {
+                let amtStr = nsLine.substring(with: match.range(at: 1))
+                if let dec = Decimal(string: amtStr) {
+                    let minor = NSDecimalNumber(decimal: dec * 100).int64Value
+                    if minor > 0 && !lineFoundMinors.contains(minor) {
+                        lineFoundMinors.append(minor)
                     }
                 }
             }
-            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: cantoneseCentPattern, options: []) {
-                let nsLine = trimmed as NSString
-                if let match = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: nsLine.length)), match.numberOfRanges > 1 {
-                    let centStr = nsLine.substring(with: match.range(at: 1))
-                    if let c = Int64(centStr) {
-                        let minor = c * 10
-                        if minor > 0 && !lineFoundMinors.contains(minor) {
-                            lineFoundMinors.append(minor)
-                        }
+            if lineFoundMinors.isEmpty, let match = VisionRegexRegistry.cantoneseCent.firstMatch(in: trimmed, range: lineRange), match.numberOfRanges > 1 {
+                let centStr = nsLine.substring(with: match.range(at: 1))
+                if let c = Int64(centStr) {
+                    let minor = c * 10
+                    if minor > 0 && !lineFoundMinors.contains(minor) {
+                        lineFoundMinors.append(minor)
                     }
                 }
             }
 
             // Extract decimal amounts on this line
-            if lineFoundMinors.isEmpty, let regex = try? NSRegularExpression(pattern: amountPattern, options: []) {
-                let nsLine = trimmed as NSString
-                let matches = regex.matches(in: trimmed, range: NSRange(location: 0, length: nsLine.length))
+            if lineFoundMinors.isEmpty {
+                let matches = VisionRegexRegistry.decimalAmount.matches(in: trimmed, range: lineRange)
                 for match in matches {
                     if match.numberOfRanges > 1 {
                         let amountStr = nsLine.substring(with: match.range(at: 1)).replacingOccurrences(of: ",", with: "")
@@ -407,18 +434,15 @@ public final class VisionOCRService: Sendable {
 
             // Extract integer amounts with currency tokens if no decimal found on this line
             if lineFoundMinors.isEmpty {
-                if let regex = try? NSRegularExpression(pattern: intCurrencyPattern, options: []) {
-                    let nsLine = trimmed as NSString
-                    let matches = regex.matches(in: trimmed, range: NSRange(location: 0, length: nsLine.length))
-                    for match in matches {
-                        let range1 = match.range(at: 1)
-                        let range2 = match.range(at: 2)
-                        let str = (range1.location != NSNotFound) ? nsLine.substring(with: range1) : (range2.location != NSNotFound ? nsLine.substring(with: range2) : nil)
-                        if let s = str, let intVal = Int64(s), intVal > 0 {
-                            let minor = intVal * 100
-                            if !lineFoundMinors.contains(minor) {
-                                lineFoundMinors.append(minor)
-                            }
+                let matches = VisionRegexRegistry.intCurrency.matches(in: trimmed, range: lineRange)
+                for match in matches {
+                    let range1 = match.range(at: 1)
+                    let range2 = match.range(at: 2)
+                    let str = (range1.location != NSNotFound) ? nsLine.substring(with: range1) : (range2.location != NSNotFound ? nsLine.substring(with: range2) : nil)
+                    if let s = str, let intVal = Int64(s), intVal > 0 {
+                        let minor = intVal * 100
+                        if !lineFoundMinors.contains(minor) {
+                            lineFoundMinors.append(minor)
                         }
                     }
                 }
@@ -538,22 +562,17 @@ public final class VisionOCRService: Sendable {
 
         // 4a. Connective pattern extraction (e.g. "HK$68.00 於 Pacific Coffee", "10 hkd at seven eleven", "在 麥當勞 消費了")
         if merchantCandidate == nil {
-            let connectivePatterns = [
-                #"(?i)(?:於|在|at|to)\s*([A-Za-z0-9_\u4e00-\u9fa5\s&'. -]{2,35})"#,
-                #"(?i)([A-Za-z0-9_\u4e00-\u9fa5\s&'. -]{2,35})\s+(?:於|在)\s+"#
-            ]
-            for pat in connectivePatterns {
-                if let regex = try? NSRegularExpression(pattern: pat, options: []) {
-                    for line in sanitizedLines {
-                        let nsLine = line as NSString
-                        if let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: nsLine.length)),
-                           match.numberOfRanges > 1 {
-                            let extracted = nsLine.substring(with: match.range(at: 1))
-                            let cleaned = VisionOCRService.cleanMerchantName(extracted)
-                            if cleaned.count >= 2 && !cleaned.localizedCaseInsensitiveContains("unknown") {
-                                merchantCandidate = cleaned
-                                break
-                            }
+            let connectiveRegexes = [VisionRegexRegistry.connective1, VisionRegexRegistry.connective2]
+            for regex in connectiveRegexes {
+                for line in sanitizedLines {
+                    let nsLine = line as NSString
+                    if let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: nsLine.length)),
+                       match.numberOfRanges > 1 {
+                        let extracted = nsLine.substring(with: match.range(at: 1))
+                        let cleaned = VisionOCRService.cleanMerchantName(extracted)
+                        if cleaned.count >= 2 && !cleaned.localizedCaseInsensitiveContains("unknown") {
+                            merchantCandidate = cleaned
+                            break
                         }
                     }
                 }
@@ -617,9 +636,8 @@ public final class VisionOCRService: Sendable {
                 if trimmed.contains("付款成功") || trimmed.contains("支付成功") || trimmed.contains("完成") || trimmed.contains("Alipay") {
                     continue
                 }
-                var stripped = trimmed
-                    .replacingOccurrences(of: "(?i)HK\\$|HKD|USD|CNY|RMB|EUR|GBP|JPY|¥|￥|\\$|港幣|元", with: "", options: .regularExpression)
-                    .replacingOccurrences(of: "(?i)amount|price|merchant|store|payee|cost|消費|付款|支出|扣款|成功", with: "", options: .regularExpression)
+                var stripped = VisionRegexRegistry.merchantStripCurrency.replace(in: trimmed)
+                stripped = VisionRegexRegistry.merchantStripWords.replace(in: stripped)
 
                 if let minor = primaryAmount {
                     let majorDouble = Double(minor) / 100.0
@@ -631,7 +649,7 @@ public final class VisionOCRService: Sendable {
                         stripped = stripped.replacingOccurrences(of: "\\b\(intStr)\\b", with: "", options: .regularExpression)
                     }
                 } else {
-                    stripped = stripped.replacingOccurrences(of: #"[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{1,2}|[0-9]+"#, with: "", options: .regularExpression)
+                    stripped = VisionRegexRegistry.merchantStripNumbers.replace(in: stripped)
                 }
 
                 let cleaned = VisionOCRService.cleanMerchantName(stripped)
@@ -645,13 +663,10 @@ public final class VisionOCRService: Sendable {
         // 5. Extract Source Transaction ID
         var txIdCandidate: String? = kvTxIdRaw
         if txIdCandidate == nil {
-            let txIdPattern = #"(?:交易號|訂單號|流水號|單號|txid|transaction|order)[:：\s]*([A-Za-z0-9_-]{8,})"#
-            if let regex = try? NSRegularExpression(pattern: txIdPattern, options: .caseInsensitive) {
-                let nsText = fullText as NSString
-                if let match = regex.firstMatch(in: fullText, range: NSRange(location: 0, length: nsText.length)),
-                   match.numberOfRanges > 1 {
-                    txIdCandidate = nsText.substring(with: match.range(at: 1))
-                }
+            let nsText = fullText as NSString
+            if let match = VisionRegexRegistry.txId.firstMatch(in: fullText, range: NSRange(location: 0, length: nsText.length)),
+               match.numberOfRanges > 1 {
+                txIdCandidate = nsText.substring(with: match.range(at: 1))
             }
         }
 
@@ -666,7 +681,7 @@ public final class VisionOCRService: Sendable {
             candidateAmountsMinor: foundMinorAmounts,
             merchantRaw: merchantCandidate ?? "Unknown Merchant",
             sourceTransactionId: txIdCandidate,
-            transactionDate: Date(),
+            transactionDate: VisionOCRService.extractTransactionDate(from: sanitizedLines) ?? Date(),
             amountConfidence: amountConf,
             merchantConfidence: merchantConf,
             ocrEngineVersion: "AppleVision-v1.0",
@@ -702,7 +717,68 @@ public final class VisionOCRService: Sendable {
         } else if upper.contains("APPLE PAY") || upper.contains("APPLE STORE") || text.contains("錢包") {
             return .applePay
         }
-        return .applePay
+        return .other
+    }
+
+    public static func extractTransactionDate(from lines: [String]) -> Date? {
+        let fullText = lines.joined(separator: "\n")
+        let calendar = Calendar(identifier: .gregorian)
+        let timeZone = TimeZone(identifier: "Asia/Hong_Kong") ?? .current
+        var dateComponents: DateComponents? = nil
+        var timeComponents: DateComponents? = nil
+
+        let nsFull = fullText as NSString
+        let fullRange = NSRange(location: 0, length: nsFull.length)
+
+        if let match = VisionRegexRegistry.isoDate.firstMatch(in: fullText, range: fullRange) ??
+                       VisionRegexRegistry.slashYearFirst.firstMatch(in: fullText, range: fullRange) {
+            if let y = Int(nsFull.substring(with: match.range(at: 1))),
+               let m = Int(nsFull.substring(with: match.range(at: 2))),
+               let d = Int(nsFull.substring(with: match.range(at: 3))) {
+                dateComponents = DateComponents(calendar: calendar, timeZone: timeZone, year: y, month: m, day: d)
+            }
+        } else if let match = VisionRegexRegistry.chineseDate.firstMatch(in: fullText, range: fullRange) {
+            if let y = Int(nsFull.substring(with: match.range(at: 1))),
+               let m = Int(nsFull.substring(with: match.range(at: 2))),
+               let d = Int(nsFull.substring(with: match.range(at: 3))) {
+                dateComponents = DateComponents(calendar: calendar, timeZone: timeZone, year: y, month: m, day: d)
+            }
+        } else if let match = VisionRegexRegistry.commonwealthDate.firstMatch(in: fullText, range: fullRange) {
+            if let d = Int(nsFull.substring(with: match.range(at: 1))),
+               let m = Int(nsFull.substring(with: match.range(at: 2))),
+               let y = Int(nsFull.substring(with: match.range(at: 3))) {
+                dateComponents = DateComponents(calendar: calendar, timeZone: timeZone, year: y, month: m, day: d)
+            }
+        }
+
+        if let match = VisionRegexRegistry.timePattern.firstMatch(in: fullText, range: fullRange) {
+            let hour = Int(nsFull.substring(with: match.range(at: 1))) ?? 0
+            let minute = Int(nsFull.substring(with: match.range(at: 2))) ?? 0
+            let second = match.range(at: 3).location != NSNotFound ? (Int(nsFull.substring(with: match.range(at: 3))) ?? 0) : 0
+            timeComponents = DateComponents(hour: hour, minute: minute, second: second)
+        }
+
+        guard var comps = dateComponents else {
+            return nil
+        }
+
+        if let time = timeComponents {
+            comps.hour = time.hour
+            comps.minute = time.minute
+            comps.second = time.second
+        } else {
+            comps.hour = 12
+            comps.minute = 0
+            comps.second = 0
+        }
+
+        guard let parsedDate = calendar.date(from: comps) else { return nil }
+
+        let now = Date()
+        if parsedDate > now.addingTimeInterval(86400) { return nil }
+        if parsedDate < now.addingTimeInterval(-365 * 5 * 86400) { return nil }
+
+        return parsedDate
     }
 
     public static func cleanNaturalLanguageLines(_ lines: [String]) -> [String] {
@@ -751,13 +827,8 @@ public final class VisionOCRService: Sendable {
             }
         }
 
-        let trailingPatterns = [
-            #"(?i)[\s]*(?:消費了|消費|買了|支付了|扣款|付款|結帳|買早餐|吃午餐|paid|paying|spent|for|了)[\s]*$"#,
-            #"[，,。！!？?、;；].*$"#
-        ]
-        for pat in trailingPatterns {
-            str = str.replacingOccurrences(of: pat, with: "", options: .regularExpression)
-        }
+        str = VisionRegexRegistry.trailingAction.replace(in: str)
+        str = VisionRegexRegistry.trailingPunctuation.replace(in: str)
 
         return str.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\"'*`.,:;!。，：；！、"))
     }

@@ -66,14 +66,18 @@ public final class AppState: ObservableObject {
 
     // Engine for fast actor-isolated calculations
     public let engine: TransactionEngine
+    public let merchantEngine: MerchantLearningEngine
+    private var cachedMerchantRules: [MerchantRule] = []
     private let storageUrl: URL
 
     public init(
         storageUrl: URL? = nil,
-        engine: TransactionEngine? = nil
+        engine: TransactionEngine? = nil,
+        merchantEngine: MerchantLearningEngine? = nil
     ) {
         let actualEngine = engine ?? TransactionEngine()
         self.engine = actualEngine
+        self.merchantEngine = merchantEngine ?? MerchantLearningEngine()
         self.storageUrl = storageUrl ?? ZeroTypingDiskStorage.defaultStorageURL
 
         self.categories = AppState.defaultCategories()
@@ -142,6 +146,10 @@ public final class AppState: ObservableObject {
                 }
                 self.categoryBudgets = restoredBudgets
 
+                // Load Merchant Rules
+                await merchantEngine.loadRules(envelope.merchantRules)
+                self.cachedMerchantRules = await merchantEngine.allRules()
+
                 // Sync into TransactionEngine
                 _ = await engine.bulkImport(importedTransactions: envelope.transactions, overwrite: true)
                 for ref in envelope.refunds {
@@ -169,7 +177,8 @@ public final class AppState: ObservableObject {
             categoryBudgets: strBudgets,
             categories: categories,
             transactions: transactions,
-            refunds: refunds
+            refunds: refunds,
+            merchantRules: cachedMerchantRules
         )
 
         do {
@@ -338,6 +347,12 @@ public final class AppState: ObservableObject {
             transactions[idx].reviewStatus = .confirmed
             transactions[idx].categoryConfidence = 1.0
             transactions[idx].updatedAt = Date()
+
+            if let raw = transactions[idx].merchantRaw, !raw.isEmpty {
+                let canon = canonicalMerchant ?? transactions[idx].merchantCanonical ?? raw
+                await merchantEngine.learnMerchantMapping(rawName: raw, canonicalName: canon, categoryId: categoryId)
+                self.cachedMerchantRules = await merchantEngine.allRules()
+            }
         }
         save()
     }

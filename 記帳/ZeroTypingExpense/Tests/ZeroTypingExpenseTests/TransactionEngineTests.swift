@@ -330,4 +330,84 @@ struct TransactionEngineTests {
         #expect(currentEvening?.amountMinor == 0)
         #expect(currentEvening?.paymentStatus == .pending)
     }
+
+    @Test("Dual-Index Duplicate Lookup: Two identical amounts within 60s flag possibleDuplicate")
+    func testDualIndexDuplicateLookup() async throws {
+        let engine = TransactionEngine()
+        let now = Date()
+
+        let tx1 = TransactionEntity(
+            idempotencyKey: "coffee_1",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            merchantRaw: "Pacific Coffee",
+            merchantCanonical: "Pacific Coffee",
+            amountMinor: 4500,
+            currency: "HKD",
+            transactionDate: now,
+            reviewStatus: .confirmed,
+            paymentStatus: .completed
+        )
+        let tx2 = TransactionEntity(
+            idempotencyKey: "coffee_2",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            merchantRaw: "Pacific Coffee",
+            merchantCanonical: "Pacific Coffee",
+            amountMinor: 4500,
+            currency: "HKD",
+            transactionDate: now.addingTimeInterval(30),
+            reviewStatus: .confirmed,
+            paymentStatus: .completed
+        )
+
+        let ingested1 = try await engine.ingestTransaction(tx1)
+        #expect(ingested1.duplicateStatus == .unique)
+
+        let ingested2 = try await engine.ingestTransaction(tx2)
+        #expect(ingested2.duplicateStatus == .possibleDuplicate)
+        #expect(ingested2.reviewStatus == .needsReview)
+    }
+
+    @Test("Time-Scoped Refund Filtering: Refunds outside date range do not subtract from net spending")
+    func testTimeScopedRefundFiltering() async throws {
+        let engine = TransactionEngine()
+        let now = Date()
+
+        let tx = TransactionEntity(
+            idempotencyKey: "shop_item",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            merchantRaw: "Uniqlo",
+            amountMinor: 50000, // HK$500
+            currency: "HKD",
+            transactionDate: now,
+            reviewStatus: .confirmed,
+            paymentStatus: .completed
+        )
+        _ = try await engine.ingestTransaction(tx)
+
+        // Refund occurred 2 days ago (e.g. past cycle)
+        let pastRefund = RefundEntity(
+            originalTransactionId: tx.id,
+            amountMinor: 20000, // HK$200
+            currency: "HKD",
+            kind: .partial,
+            occurredAt: now.addingTimeInterval(-86400 * 2)
+        )
+        try await engine.addRefund(pastRefund)
+
+        // Spending calculation for today [now - 3600, now + 3600]
+        let currentWindowSpend = await engine.calculateActiveNetSpending(
+            forCurrency: "HKD",
+            start: now.addingTimeInterval(-3600),
+            end: now.addingTimeInterval(3600)
+        )
+        // Since refund was 2 days ago, it should not offset the current window
+        #expect(currentWindowSpend == 50000)
+
+        // Spending calculation across all time includes the refund
+        let allTimeSpend = await engine.calculateActiveNetSpending(forCurrency: "HKD")
+        #expect(allTimeSpend == 30000)
+    }
 }

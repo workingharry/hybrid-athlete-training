@@ -3,6 +3,7 @@ import Foundation
 public actor TransactionEngine {
     private var transactions: [UUID: TransactionEntity] = [:]
     private var idempotencyIndex: [String: UUID] = [:]
+    private var amountIndex: [Int64: [UUID]] = [:]
     private var refunds: [UUID: [RefundEntity]] = [:] // originalTransactionId -> refunds
     private var pairedDuplicates: [UUID: UUID] = [:] // newTx -> candidateTx
 
@@ -41,7 +42,8 @@ public actor TransactionEngine {
             // for the same provider, merchant, and deviceSource within 24 hours,
             // pair with the chronologically closest hold and update rather than creating a duplicate.
             let newEffectiveDate = newTx.transactionDate ?? newTx.capturedAt
-            let eligibleHolds = transactions.values.filter { candidate in
+            let zeroHoldIds = amountIndex[0] ?? []
+            let eligibleHolds = zeroHoldIds.compactMap { transactions[$0] }.filter { candidate in
                 guard candidate.provider == newTx.provider,
                       candidate.deviceSource == newTx.deviceSource,
                       (candidate.amountMinor == 0 || candidate.paymentStatus == .pending) else {
@@ -67,6 +69,12 @@ public actor TransactionEngine {
             }
 
             if let hold = matchingHold {
+                if let oldAmt = hold.amountMinor {
+                    amountIndex[oldAmt]?.removeAll(where: { $0 == hold.id })
+                    if amountIndex[oldAmt]?.isEmpty == true {
+                        amountIndex.removeValue(forKey: oldAmt)
+                    }
+                }
                 var updatedHold = hold
                 updatedHold.amountMinor = newTx.amountMinor
                 updatedHold.ledgerAmountMinor = newTx.ledgerAmountMinor ?? newTx.amountMinor
@@ -79,15 +87,19 @@ public actor TransactionEngine {
                 updatedHold.updatedAt = Date()
                 transactions[updatedHold.id] = updatedHold
                 idempotencyIndex[newTx.idempotencyKey] = updatedHold.id
+                if let newAmt = updatedHold.amountMinor {
+                    amountIndex[newAmt, default: []].append(updatedHold.id)
+                }
                 return updatedHold
             }
         }
 
         // 2. Transaction-level duplication heuristic (prioritizing transactionDate over capturedAt)
-        if newTx.duplicateStatus == .unique {
+        if newTx.duplicateStatus == .unique, let amt = newTx.amountMinor {
             let newEffectiveDate = newTx.transactionDate ?? newTx.capturedAt
 
-            let possibleDup = transactions.values.first { candidate in
+            let candidateIds = amountIndex[amt] ?? []
+            let possibleDup = candidateIds.compactMap { transactions[$0] }.first { candidate in
                 guard candidate.id != newTx.id,
                       candidate.merchantCanonical == newTx.merchantCanonical || candidate.merchantRaw == newTx.merchantRaw,
                       candidate.amountMinor == newTx.amountMinor,
@@ -117,6 +129,9 @@ public actor TransactionEngine {
         // Store
         transactions[newTx.id] = newTx
         idempotencyIndex[newTx.idempotencyKey] = newTx.id
+        if let amt = newTx.amountMinor {
+            amountIndex[amt, default: []].append(newTx.id)
+        }
         return newTx
     }
 
@@ -201,12 +216,19 @@ public actor TransactionEngine {
         guard var tx = transactions[id] else {
             throw EngineError.transactionNotFound(id)
         }
+        if let oldAmt = tx.amountMinor {
+            amountIndex[oldAmt]?.removeAll(where: { $0 == id })
+            if amountIndex[oldAmt]?.isEmpty == true {
+                amountIndex.removeValue(forKey: oldAmt)
+            }
+        }
         tx.amountMinor = newAmountMinor
         tx.ledgerAmountMinor = newAmountMinor
         tx.amountConfidence = 1.0
         tx.paymentStatus = .completed
         tx.updatedAt = Date()
         transactions[id] = tx
+        amountIndex[newAmountMinor, default: []].append(id)
     }
 
     /// Resolve category decision in Pending Review
@@ -273,6 +295,13 @@ public actor TransactionEngine {
         }
         // Remove from idempotency index
         idempotencyIndex.removeValue(forKey: tx.idempotencyKey)
+        // Remove from amount index
+        if let amt = tx.amountMinor {
+            amountIndex[amt]?.removeAll(where: { $0 == id })
+            if amountIndex[amt]?.isEmpty == true {
+                amountIndex.removeValue(forKey: amt)
+            }
+        }
         // Cascade delete associated refunds
         refunds.removeValue(forKey: id)
         // Clean up paired duplicates
@@ -286,6 +315,7 @@ public actor TransactionEngine {
     public func clearAllTransactions(keepCategories: Bool = true) throws {
         transactions.removeAll()
         idempotencyIndex.removeAll()
+        amountIndex.removeAll()
         refunds.removeAll()
         pairedDuplicates.removeAll()
     }
@@ -298,6 +328,12 @@ public actor TransactionEngine {
         guard var tx = transactions[id] else {
             throw EngineError.transactionNotFound(id)
         }
+        if let oldAmt = tx.amountMinor {
+            amountIndex[oldAmt]?.removeAll(where: { $0 == id })
+            if amountIndex[oldAmt]?.isEmpty == true {
+                amountIndex.removeValue(forKey: oldAmt)
+            }
+        }
         tx.amountMinor = chosenAmountMinor
         tx.ledgerAmountMinor = chosenAmountMinor
         tx.amountConfidence = 1.0
@@ -308,6 +344,7 @@ public actor TransactionEngine {
         }
         tx.updatedAt = Date()
         transactions[id] = tx
+        amountIndex[chosenAmountMinor, default: []].append(id)
     }
 
     /// Resolve suspected duplicate transaction (§5.5)
@@ -334,6 +371,7 @@ public actor TransactionEngine {
         if overwrite {
             transactions.removeAll()
             idempotencyIndex.removeAll()
+            amountIndex.removeAll()
             refunds.removeAll()
             pairedDuplicates.removeAll()
         }
@@ -341,7 +379,16 @@ public actor TransactionEngine {
         for tx in importedTransactions {
             if let existingId = idempotencyIndex[tx.idempotencyKey] {
                 if overwrite {
+                    if let oldAmt = transactions[existingId]?.amountMinor {
+                        amountIndex[oldAmt]?.removeAll(where: { $0 == existingId })
+                        if amountIndex[oldAmt]?.isEmpty == true {
+                            amountIndex.removeValue(forKey: oldAmt)
+                        }
+                    }
                     transactions[existingId] = tx
+                    if let amt = tx.amountMinor {
+                        amountIndex[amt, default: []].append(existingId)
+                    }
                     importedCount += 1
                 } else {
                     skippedCount += 1
@@ -349,6 +396,9 @@ public actor TransactionEngine {
             } else {
                 transactions[tx.id] = tx
                 idempotencyIndex[tx.idempotencyKey] = tx.id
+                if let amt = tx.amountMinor {
+                    amountIndex[amt, default: []].append(tx.id)
+                }
                 importedCount += 1
             }
         }
@@ -381,10 +431,15 @@ public actor TransactionEngine {
         return true
     }
 
-    private func effectiveNetAmount(for tx: TransactionEntity) -> Int64 {
+    private func effectiveNetAmount(for tx: TransactionEntity, start: Date? = nil, end: Date? = nil) -> Int64 {
         let txAmount = tx.ledgerAmountMinor ?? tx.amountMinor ?? 0
         let txRefunds = refunds[tx.id] ?? []
-        let refundedAmount = txRefunds.reduce(Int64(0)) { $0 + $1.amountMinor }
+        let eligibleRefunds = txRefunds.filter { ref in
+            if let start = start, ref.occurredAt < start { return false }
+            if let end = end, ref.occurredAt > end { return false }
+            return true
+        }
+        let refundedAmount = eligibleRefunds.reduce(Int64(0)) { $0 + $1.amountMinor }
         return max(0, txAmount - refundedAmount)
     }
 
@@ -394,7 +449,7 @@ public actor TransactionEngine {
 
         for tx in transactions.values {
             guard isActiveConfirmedExpense(tx, targetCurrency: targetCurrency, start: start, end: end) else { continue }
-            let effectiveAmount = effectiveNetAmount(for: tx)
+            let effectiveAmount = effectiveNetAmount(for: tx, start: start, end: end)
             let (newSum, didOverflow) = netSpending.addingReportingOverflow(effectiveAmount)
             netSpending = didOverflow ? Int64.max : newSum
         }
@@ -410,7 +465,7 @@ public actor TransactionEngine {
             guard isActiveConfirmedExpense(tx, targetCurrency: targetCurrency, start: start, end: end) else { continue }
             guard let categoryId = tx.categoryId else { continue }
 
-            let effectiveAmount = effectiveNetAmount(for: tx)
+            let effectiveAmount = effectiveNetAmount(for: tx, start: start, end: end)
             let currentSum = categoryTotals[categoryId, default: 0]
             let (newSum, didOverflow) = currentSum.addingReportingOverflow(effectiveAmount)
             categoryTotals[categoryId] = didOverflow ? Int64.max : newSum
@@ -426,7 +481,7 @@ public actor TransactionEngine {
         for tx in transactions.values {
             guard isActiveConfirmedExpense(tx, targetCurrency: targetCurrency, start: start, end: end) else { continue }
             let merchantName = tx.merchantCanonical ?? tx.merchantRaw ?? "Unknown"
-            let effectiveAmount = effectiveNetAmount(for: tx)
+            let effectiveAmount = effectiveNetAmount(for: tx, start: start, end: end)
 
             let existing = merchantStats[merchantName, default: (count: 0, total: 0)]
             let (newTotal, didOverflow) = existing.total.addingReportingOverflow(effectiveAmount)
@@ -450,7 +505,7 @@ public actor TransactionEngine {
 
         for tx in transactions.values {
             guard isActiveConfirmedExpense(tx, targetCurrency: targetCurrency, start: start, end: end) else { continue }
-            let effectiveAmount = effectiveNetAmount(for: tx)
+            let effectiveAmount = effectiveNetAmount(for: tx, start: start, end: end)
             let current = deviceTotals[tx.deviceSource, default: 0]
             let (newSum, didOverflow) = current.addingReportingOverflow(effectiveAmount)
             deviceTotals[tx.deviceSource] = didOverflow ? Int64.max : newSum

@@ -13,6 +13,7 @@ public struct AppStorageEnvelope: Codable, Sendable {
     public var categories: [CategoryEntity]
     public var transactions: [TransactionEntity]
     public var refunds: [RefundEntity]
+    public var merchantRules: [MerchantRule]
 
     public init(
         version: Int = 1,
@@ -20,7 +21,8 @@ public struct AppStorageEnvelope: Codable, Sendable {
         categoryBudgets: [String: Int64] = [:],
         categories: [CategoryEntity] = [],
         transactions: [TransactionEntity] = [],
-        refunds: [RefundEntity] = []
+        refunds: [RefundEntity] = [],
+        merchantRules: [MerchantRule] = []
     ) {
         self.version = version
         self.monthlyBudgetTotalMinor = monthlyBudgetTotalMinor
@@ -28,6 +30,28 @@ public struct AppStorageEnvelope: Codable, Sendable {
         self.categories = categories
         self.transactions = transactions
         self.refunds = refunds
+        self.merchantRules = merchantRules
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case monthlyBudgetTotalMinor
+        case categoryBudgets
+        case categories
+        case transactions
+        case refunds
+        case merchantRules
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        self.monthlyBudgetTotalMinor = try container.decodeIfPresent(Int64.self, forKey: .monthlyBudgetTotalMinor) ?? 1_000_000
+        self.categoryBudgets = try container.decodeIfPresent([String: Int64].self, forKey: .categoryBudgets) ?? [:]
+        self.categories = try container.decodeIfPresent([CategoryEntity].self, forKey: .categories) ?? []
+        self.transactions = try container.decodeIfPresent([TransactionEntity].self, forKey: .transactions) ?? []
+        self.refunds = try container.decodeIfPresent([RefundEntity].self, forKey: .refunds) ?? []
+        self.merchantRules = try container.decodeIfPresent([MerchantRule].self, forKey: .merchantRules) ?? []
     }
 }
 

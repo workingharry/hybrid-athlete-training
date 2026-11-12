@@ -44,6 +44,16 @@ public actor MerchantLearningEngine {
         }
     }
 
+    public func allRules() -> [MerchantRule] {
+        return Array(rulesById.values)
+    }
+
+    public func loadRules(_ imported: [MerchantRule]) {
+        for r in imported {
+            registerRule(r)
+        }
+    }
+
     public func matchCategory(forMerchantRaw rawName: String) -> (canonicalName: String, categoryId: UUID, confidence: Float)? {
         let key = normalize(rawName)
 
