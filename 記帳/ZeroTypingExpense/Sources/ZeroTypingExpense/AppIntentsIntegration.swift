@@ -93,11 +93,15 @@ public struct RecordExpenseIntent: AppIntent {
     @Parameter(title: "捷徑完整輸入 (極簡免設定)", description: "可直接將『捷徑輸入』整體帶入此欄位，系統自動解析金額與商戶", default: nil)
     public var rawInput: String?
 
+    @Parameter(title: "交通預授權保留", description: "例如八達通或感應式信用卡進閘 $0 預授權", default: false)
+    public var isTransitPreAuth: Bool
+
     public init() {
         self.deviceSource = "iPhone"
         self.expenditureType = "payment"
         self.notes = nil
         self.rawInput = nil
+        self.isTransitPreAuth = false
     }
 
     public init(
@@ -109,7 +113,8 @@ public struct RecordExpenseIntent: AppIntent {
         deviceSource: String = "iPhone",
         expenditureType: String = "payment",
         notes: String? = nil,
-        rawInput: String? = nil
+        rawInput: String? = nil,
+        isTransitPreAuth: Bool = false
     ) {
         self.amount = amount
         self.currency = currency
@@ -120,6 +125,7 @@ public struct RecordExpenseIntent: AppIntent {
         self.expenditureType = expenditureType
         self.notes = notes
         self.rawInput = rawInput
+        self.isTransitPreAuth = isTransitPreAuth
     }
 
     public static var parameterSummary: some ParameterSummary {
@@ -204,11 +210,6 @@ public struct RecordExpenseIntent: AppIntent {
             parsedType = inferredTxType ?? .payment
         }
 
-        // Zero-Amount Hard Rejection: 當出現 0 元是不算入記錄
-        guard finalAmountMinor > 0 else {
-            throw IntentError.zeroAmountIgnored
-        }
-
         let isTransitOrOctopus = resolvedMerchant.localizedCaseInsensitiveContains("octopus") ||
                                  resolvedMerchant.contains("八達通") ||
                                  resolvedMerchant.localizedCaseInsensitiveContains("mtr") ||
@@ -224,6 +225,18 @@ public struct RecordExpenseIntent: AppIntent {
                                  resolvedMerchant.contains("交通") ||
                                  resolvedMerchant.contains("進站")
 
+        // Zero-Amount Hard Rejection: 當出現 0 元是不算入記錄，除非是八達通/交通預授權 Hold (isTransitPreAuth == true 或 notes 註記 hold)
+        let isHoldExplicit = isTransitPreAuth ||
+                             (notes?.localizedCaseInsensitiveContains("preauth") == true) ||
+                             (notes?.localizedCaseInsensitiveContains("hold") == true) ||
+                             (expenditureType.lowercased() == "hold")
+        let isHoldEligible = isHoldExplicit && isTransitOrOctopus
+
+        if finalAmountMinor == 0 && !isHoldEligible {
+            throw IntentError.zeroAmountIgnored
+        }
+
+        let isHold = (finalAmountMinor == 0) && isHoldEligible
         let effectiveProvider: PaymentProvider = isTransitOrOctopus ? .octopus : .applePay
 
         // Double-layer idempotency key (§8.5)
@@ -235,18 +248,20 @@ public struct RecordExpenseIntent: AppIntent {
             idempotencyKey = "\(effectiveProvider.rawValue)_\(cardSuffix)_\(resolvedMerchant)_\(finalAmountMinor)_\(Int(date.timeIntervalSince1970 / 60))"
         }
 
-        let reviewStatus: ReviewStatus = .confirmed
-        let paymentStatus: PaymentStatus = .completed
+        let reviewStatus: ReviewStatus = isHold ? .needsReview : .confirmed
+        let paymentStatus: PaymentStatus = isHold ? .pending : .completed
 
         let transaction = TransactionEntity(
             idempotencyKey: idempotencyKey,
             provider: effectiveProvider,
             captureChannel: .walletAutomation,
             deviceSource: devSource,
+            ingestionSource: .walletShortcut,
             sourceTransactionId: effectiveTxId,
             merchantRaw: resolvedMerchant,
             merchantCanonical: resolvedMerchant,
             amountMinor: finalAmountMinor,
+            isHoldCandidate: isHold,
             currency: resolvedCurrency,
             ledgerAmountMinor: finalAmountMinor,
             ledgerCurrency: resolvedCurrency,
@@ -347,7 +362,8 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             ocrResult = VisionOCRService.shared.parseRecognizedStrings(recognizedLines)
         }
 
-        if let minor = ocrResult.amountMinor, minor == 0 {
+        let isTransit = (ocrResult.provider == .octopus) || (ocrResult.merchantRaw?.localizedCaseInsensitiveContains("octopus") == true) || (ocrResult.merchantRaw?.contains("八達通") == true) || (ocrResult.merchantRaw?.contains("港鐵") == true)
+        if let minor = ocrResult.amountMinor, minor == 0 && !isTransit {
             throw RecordExpenseIntent.IntentError.zeroAmountIgnored
         }
 
@@ -380,10 +396,13 @@ public struct ProcessPaymentScreenshotIntent: AppIntent {
             provider: provider,
             captureChannel: channel,
             deviceSource: .iPhone,
+            ingestionSource: .notificationOCR,
             sourceTransactionId: effectiveTxId,
             merchantRaw: ocrResult.merchantRaw,
             merchantCanonical: ocrResult.merchantRaw,
             amountMinor: ocrResult.amountMinor,
+            remainingBalanceMinor: ocrResult.remainingBalanceMinor,
+            isHoldCandidate: isAmountMissingOrZero && isTransit,
             candidateAmountsMinor: ocrResult.candidateAmountsMinor,
             currency: ocrResult.currency,
             ledgerAmountMinor: ocrResult.amountMinor,
@@ -489,10 +508,13 @@ public struct ParseClipboardExpenseIntent: AppIntent {
             provider: ocrResult.provider,
             captureChannel: .clipboardParse,
             deviceSource: .iPhone,
+            ingestionSource: .clipboard,
             sourceTransactionId: effectiveTxId,
             merchantRaw: ocrResult.merchantRaw,
             merchantCanonical: ocrResult.merchantRaw,
             amountMinor: ocrResult.amountMinor,
+            remainingBalanceMinor: ocrResult.remainingBalanceMinor,
+            isHoldCandidate: isAmountMissingOrZero && (ocrResult.provider == .octopus || ocrResult.merchantRaw?.contains("八達通") == true),
             candidateAmountsMinor: ocrResult.candidateAmountsMinor,
             currency: ocrResult.currency,
             ledgerAmountMinor: ocrResult.amountMinor,

@@ -20,6 +20,10 @@ public struct OCRResult: Sendable, Equatable {
     public let ocrTemplateVersion: String
     public let requiresManualReview: Bool
     public let transactionType: TransactionType
+    public let intent: NotificationIntent
+    public let remainingBalanceMinor: Int64?
+    public let isHypotheticalOrConditional: Bool
+    public let evidencePhrase: String?
 
     public init(
         provider: PaymentProvider,
@@ -34,7 +38,11 @@ public struct OCRResult: Sendable, Equatable {
         ocrEngineVersion: String = "AppleVision-v1.0",
         ocrTemplateVersion: String = "Alipay-v1.3",
         requiresManualReview: Bool = false,
-        transactionType: TransactionType = .payment
+        transactionType: TransactionType = .payment,
+        intent: NotificationIntent = .confirmedExpenditure,
+        remainingBalanceMinor: Int64? = nil,
+        isHypotheticalOrConditional: Bool = false,
+        evidencePhrase: String? = nil
     ) {
         self.provider = provider
         self.currency = currency
@@ -49,6 +57,10 @@ public struct OCRResult: Sendable, Equatable {
         self.ocrTemplateVersion = ocrTemplateVersion
         self.requiresManualReview = requiresManualReview
         self.transactionType = transactionType
+        self.intent = intent
+        self.remainingBalanceMinor = remainingBalanceMinor
+        self.isHypotheticalOrConditional = isHypotheticalOrConditional
+        self.evidencePhrase = evidencePhrase
     }
 }
 
@@ -88,6 +100,7 @@ internal enum VisionRegexRegistry: Sendable {
     static let txId = try! NSRegularExpression(pattern: #"(?i)(?:交易號|訂單號|流水號|單號|txid|transaction|order)[:：\s]*([A-Za-z0-9_-]{8,})"#)
     static let trailingAction = try! NSRegularExpression(pattern: #"(?i)[\s]*(?:消費了|消費|買了|支付了|扣款|付款|結帳|買早餐|吃午餐|paid|paying|spent|for|了)[\s]*$"#)
     static let trailingPunctuation = try! NSRegularExpression(pattern: #"[，,。！!？?、;；].*$"#)
+    static let clauseSplit = try! NSRegularExpression(pattern: #"(?:[\n。；;|]|\.(?![0-9]))"#)
 
     // Receipt Date Patterns
     static let isoDate = try! NSRegularExpression(pattern: #"\b(20[2-3][0-9])[-.](0[1-9]|1[0-2])[-.](0[1-9]|[12][0-9]|3[01])\b"#)
@@ -132,7 +145,6 @@ public final class VisionOCRService: Sendable {
     /// Sanitize text lines to prevent CSV / formula injection (=, +, -, @, cmd, \t, \r, |)
     public static func sanitizeFormulaPrefix(_ input: String) -> String {
         var str = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Check for CSV / Excel formula injection prefixes
         let dangerousPrefixes: [Character] = ["=", "+", "-", "@", "\t", "\r", "|"]
         while let firstChar = str.first, dangerousPrefixes.contains(firstChar) {
             str.removeFirst()
@@ -145,6 +157,200 @@ public final class VisionOCRService: Sendable {
         return str
     }
 
+    public struct ParsedClause: Sendable, Equatable {
+        public let text: String
+        public let intent: NotificationIntent
+        public let isHypotheticalOrConditional: Bool
+        public let evidencePhrase: String?
+
+        public init(text: String, intent: NotificationIntent, isHypotheticalOrConditional: Bool = false, evidencePhrase: String? = nil) {
+            self.text = text
+            self.intent = intent
+            self.isHypotheticalOrConditional = isHypotheticalOrConditional
+            self.evidencePhrase = evidencePhrase
+        }
+    }
+
+    public struct DualRoleResult: Sendable, Equatable {
+        public let spentMinor: Int64?
+        public let balanceMinor: Int64?
+
+        public init(spentMinor: Int64?, balanceMinor: Int64?) {
+            self.spentMinor = spentMinor
+            self.balanceMinor = balanceMinor
+        }
+    }
+
+    /// Stage 0: Clause Segmentation + Hybrid Intent Gate
+    public static func segmentAndClassifyClauses(_ rawText: String) -> [ParsedClause] {
+        var cleanRaw = VisionRegexRegistry.dotMatrixO1.replace(in: rawText, with: "00")
+        cleanRaw = VisionRegexRegistry.dotMatrixO2.replace(in: cleanRaw, with: "0")
+        cleanRaw = VisionRegexRegistry.dotMatrixO3.replace(in: cleanRaw, with: "0")
+        let pattern = #"(?:[\n。；;|]|\.(?![0-9Oo]))"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return [classifySingleClause(cleanRaw)]
+        }
+        let ns = cleanRaw as NSString
+        let matches = regex.matches(in: rawText, range: NSRange(location: 0, length: ns.length))
+        var clauses: [String] = []
+        var lastIdx = 0
+        for m in matches {
+            let r = NSRange(location: lastIdx, length: m.range.location - lastIdx)
+            if r.length > 0 {
+                let part = ns.substring(with: r).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !part.isEmpty { clauses.append(part) }
+            }
+            lastIdx = m.range.location + m.range.length
+        }
+        if lastIdx < ns.length {
+            let part = ns.substring(from: lastIdx).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !part.isEmpty { clauses.append(part) }
+        }
+        if clauses.isEmpty { return [classifySingleClause(rawText)] }
+        return clauses.map { classifySingleClause($0) }
+    }
+
+    public static func classifySingleClause(_ clause: String) -> ParsedClause {
+        let lower = clause.lowercased()
+
+        let loanKeywords = ["貸款", "借貸", "預批", "分期", "月平息", "信用額", "最低還款", "loan", "pre-approved", "installment", "apr", "credit limit", "min pay"]
+        let promoKeywords = ["高達", "低至", "消費滿", "簽賬滿", "回贈", "獎賞", "抽獎", "up to", "as low as", "rebate", "cashback", "win"]
+        let topUpKeywords = ["自動增值", "已增值", "增值", "top up", "top-up", "reload", "aavs", "儲值", "充值"]
+        let refundKeywords = ["退款", "退回", "refund", "reversal"]
+        let settledKeywords = ["已扣除", "扣除", "已付款", "付款", "消費", "支付", "扣款", "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "payment of", "purchase", "fare", "net", "實付", "買了", "結帳"]
+        let otpKeywords = ["驗證碼", "otp", "one-time password", "3ds", "動態密碼"]
+        let balanceKeywords = ["餘額", "結餘", "現時餘額", "最新結餘", "可用餘額", "可用信用額", "剩餘儲值", "餘額為", "remaining value", "remaining balance", "balance", "bal", "avail"]
+
+        let hasOTP = otpKeywords.contains { lower.contains($0.lowercased()) }
+        if hasOTP {
+            return ParsedClause(text: clause, intent: .otpOrAuthAttempt, isHypotheticalOrConditional: true, evidencePhrase: nil)
+        }
+
+        let hasRefund = refundKeywords.contains { lower.contains($0.lowercased()) }
+        let hasTopUp = topUpKeywords.contains { lower.contains($0.lowercased()) }
+        let hasLoan = loanKeywords.contains { lower.contains($0.lowercased()) }
+        let hasPromo = promoKeywords.contains { lower.contains($0.lowercased()) }
+        let hasSettled = settledKeywords.contains { lower.contains($0.lowercased()) }
+        let hasBalance = balanceKeywords.contains { lower.contains($0.lowercased()) }
+
+        if hasRefund {
+            return ParsedClause(text: clause, intent: .refundOrReversal, isHypotheticalOrConditional: false, evidencePhrase: clause)
+        }
+
+        if hasLoan || (hasPromo && !hasSettled) {
+            return ParsedClause(text: clause, intent: .loanOrPromoOffer, isHypotheticalOrConditional: true, evidencePhrase: nil)
+        }
+
+        if hasTopUp && !hasSettled {
+            return ParsedClause(text: clause, intent: .topUpOrInternalTransfer, isHypotheticalOrConditional: false, evidencePhrase: clause)
+        }
+
+        if hasSettled {
+            return ParsedClause(text: clause, intent: .confirmedExpenditure, isHypotheticalOrConditional: false, evidencePhrase: clause)
+        }
+
+        if hasBalance && !hasSettled {
+            return ParsedClause(text: clause, intent: .balanceInquiryOnly, isHypotheticalOrConditional: false, evidencePhrase: nil)
+        }
+
+        return ParsedClause(text: clause, intent: .confirmedExpenditure, isHypotheticalOrConditional: false, evidencePhrase: clause)
+    }
+
+    /// Role-Anchored Dual Extraction (DualNumberRoleExtractor)
+    public static func extractDualNumberRoles(_ text: String) -> DualRoleResult {
+        var normalizedText = VisionRegexRegistry.dotMatrixO1.replace(in: text, with: "00")
+        normalizedText = VisionRegexRegistry.dotMatrixO2.replace(in: normalizedText, with: "0")
+        normalizedText = VisionRegexRegistry.dotMatrixO3.replace(in: normalizedText, with: "0")
+        let ns = normalizedText as NSString
+        let fullRange = NSRange(location: 0, length: ns.length)
+
+        struct CandidateMatch {
+            let minor: Int64
+            let location: Int
+            let spendScore: Int
+            let balanceScore: Int
+        }
+
+        var candidates: [CandidateMatch] = []
+
+        func evaluateCandidate(rawAmountStr: String, location: Int, multiplier: Int64 = 100) {
+            let cleaned = rawAmountStr.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
+            let minor: Int64
+            if cleaned.contains(".") {
+                guard let dec = Decimal(string: cleaned) else { return }
+                minor = NSDecimalNumber(decimal: dec * 100).int64Value
+            } else if let intVal = Int64(cleaned), intVal > 0 {
+                minor = intVal * multiplier
+            } else {
+                return
+            }
+            guard minor > 0 else { return }
+
+            // Inspect prefix window up to previous punctuation/delimiter (max 25 chars before the number)
+            let start = max(0, location - 25)
+            let len = location - start
+            let rawPrefix = (len > 0 ? ns.substring(with: NSRange(location: start, length: len)) : "").lowercased()
+            let delimChars = CharacterSet(charactersIn: "，,。;\n\r；|")
+            let prefixSegments = rawPrefix.components(separatedBy: delimChars)
+            let prefix = prefixSegments.last?.trimmingCharacters(in: .whitespaces) ?? rawPrefix
+
+            var sSpend = 0
+            var sBalance = 0
+
+            let spendPositiveWords = ["已扣除", "扣除", "扣款", "已付款", "付款", "消費", "支付", "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "payment of", "purchase", "fare", "net", "實付"]
+            let spendNegativeWords = ["餘額", "結餘", "剩餘", "可用", "儲值額", "balance", "remaining", "bal", "avail", "高達", "增值", "自動增值", "貸款", "分期"]
+
+            let balancePositiveWords = ["餘額", "結餘", "現時餘額", "最新結餘", "可用餘額", "可用信用額", "剩餘儲值", "餘額為", "remaining value", "remaining balance", "balance", "bal", "avail"]
+            let balanceNegativeWords = ["扣除", "消費", "付款", "deducted", "paid", "spent", "車費", "已扣除", "已付款", "支付"]
+
+            if spendPositiveWords.contains(where: { prefix.contains($0.lowercased()) }) {
+                sSpend += 3
+            }
+            if spendNegativeWords.contains(where: { prefix.contains($0.lowercased()) }) {
+                sSpend -= 5
+            }
+
+            if balancePositiveWords.contains(where: { prefix.contains($0.lowercased()) }) {
+                sBalance += 3
+            }
+            if balanceNegativeWords.contains(where: { prefix.contains($0.lowercased()) }) {
+                sBalance -= 5
+            }
+
+            candidates.append(CandidateMatch(minor: minor, location: location, spendScore: sSpend, balanceScore: sBalance))
+        }
+
+        // Match decimals
+        for m in VisionRegexRegistry.decimalAmount.matches(in: text, range: fullRange) {
+            if m.numberOfRanges > 1 {
+                let range = m.range(at: 1)
+                let numStr = ns.substring(with: range)
+                evaluateCandidate(rawAmountStr: numStr, location: range.location)
+            }
+        }
+
+        // Match integer currencies
+        for m in VisionRegexRegistry.intCurrency.matches(in: text, range: fullRange) {
+            let r1 = m.range(at: 1)
+            let r2 = m.range(at: 2)
+            if r1.location != NSNotFound {
+                evaluateCandidate(rawAmountStr: ns.substring(with: r1), location: r1.location, multiplier: 100)
+            } else if r2.location != NSNotFound {
+                evaluateCandidate(rawAmountStr: ns.substring(with: r2), location: r2.location, multiplier: 100)
+            }
+        }
+
+        let bestSpend = candidates.filter { $0.spendScore > 0 }
+            .sorted { $0.spendScore != $1.spendScore ? $0.spendScore > $1.spendScore : $0.location > $1.location }
+            .first?.minor
+
+        let bestBalance = candidates.filter { $0.balanceScore > 0 }
+            .sorted { $0.balanceScore != $1.balanceScore ? $0.balanceScore > $1.balanceScore : $0.location > $1.location }
+            .first?.minor
+
+        return DualRoleResult(spentMinor: bestSpend, balanceMinor: bestBalance)
+    }
+
     /// Parse array of OCR recognized text lines into structured financial receipt details
     public func parseRecognizedStrings(_ lines: [String]) -> OCRResult {
         // Normalize fullwidth digits and sanitize incoming lines against formula injection
@@ -153,24 +359,59 @@ public final class VisionOCRService: Sendable {
         let sanitizedLines = VisionOCRService.cleanNaturalLanguageLines(rawSanitizedLines)
         let fullText = sanitizedLines.joined(separator: "\n")
 
+        // Stage 0: Clause Segmentation & Hybrid Intent Gate
+        let parsedClauses = VisionOCRService.segmentAndClassifyClauses(fullText)
+        let hasExpenditureClause = parsedClauses.contains { $0.intent == .confirmedExpenditure }
+        let hasRefundClause = parsedClauses.contains { $0.intent == .refundOrReversal }
+        let hasTopUpClause = parsedClauses.contains { $0.intent == .topUpOrInternalTransfer }
+        let hasLoanPromoOnly = !hasExpenditureClause && !hasRefundClause && !hasTopUpClause && parsedClauses.contains { $0.intent == .loanOrPromoOffer }
+        let hasOTPOnly = !hasExpenditureClause && !hasRefundClause && parsedClauses.contains { $0.intent == .otpOrAuthAttempt }
+
+        var primaryIntent: NotificationIntent = .confirmedExpenditure
+        var isHypo = false
+        var evidencePhrase: String? = nil
+
+        if hasLoanPromoOnly {
+            primaryIntent = .loanOrPromoOffer
+            isHypo = true
+        } else if hasOTPOnly {
+            primaryIntent = .otpOrAuthAttempt
+            isHypo = true
+        } else if hasRefundClause {
+            primaryIntent = .refundOrReversal
+            evidencePhrase = parsedClauses.first { $0.intent == .refundOrReversal }?.evidencePhrase
+        } else if hasTopUpClause && !hasExpenditureClause {
+            primaryIntent = .topUpOrInternalTransfer
+            evidencePhrase = parsedClauses.first { $0.intent == .topUpOrInternalTransfer }?.evidencePhrase
+        } else if let exp = parsedClauses.first(where: { $0.intent == .confirmedExpenditure }) {
+            primaryIntent = .confirmedExpenditure
+            evidencePhrase = exp.evidencePhrase
+        }
+
+        // Active lines for amount extraction: drop pure loan/promo/otp clauses so non-expenditure limits are never extracted as spent
+        let activeClauses = parsedClauses.filter { $0.intent != .loanOrPromoOffer && $0.intent != .otpOrAuthAttempt }
+        let effectiveLines = (hasExpenditureClause || hasRefundClause || hasTopUpClause) ? activeClauses.map { $0.text } : sanitizedLines
+
         // 1. Detect Provider & Initial Currency & Transaction Type
         let provider = VisionOCRService.detectPaymentProvider(in: fullText)
         let isAlipayChina = (provider == .alipayChina)
         var detectedCurrency = isAlipayChina ? "CNY" : "HKD"
 
-        var detectedType: TransactionType = .payment
+        var detectedType: TransactionType = (primaryIntent == .topUpOrInternalTransfer) ? .topUp : ((primaryIntent == .refundOrReversal) ? .refund : .payment)
         let lowerFull = fullText.lowercased()
-        if lowerFull.contains("增值") || lowerFull.contains("自動增值") || lowerFull.contains("aavs") ||
-           lowerFull.contains("儲值") || lowerFull.contains("充值") || lowerFull.contains("top up") ||
-           lowerFull.contains("top-up") || lowerFull.contains("add value") || lowerFull.contains("reload") {
-            detectedType = .topUp
-        } else if lowerFull.contains("退款") || lowerFull.contains("退回") || lowerFull.contains("refund") || lowerFull.contains("reversal") {
-            detectedType = .refund
-        } else if lowerFull.contains("轉帳") || lowerFull.contains("轉賬") || lowerFull.contains("轉數快") ||
-                  lowerFull.contains("fps") || lowerFull.contains("transfer") {
-            detectedType = .transfer
-        } else if lowerFull.contains("手續費") || lowerFull.contains("服務費") || lowerFull.contains("handling fee") {
-            detectedType = .fee
+        if primaryIntent != .topUpOrInternalTransfer && primaryIntent != .refundOrReversal {
+            if lowerFull.contains("增值") || lowerFull.contains("自動增值") || lowerFull.contains("aavs") ||
+               lowerFull.contains("儲值") || lowerFull.contains("充值") || lowerFull.contains("top up") ||
+               lowerFull.contains("top-up") || lowerFull.contains("add value") || lowerFull.contains("reload") {
+                detectedType = .topUp
+            } else if lowerFull.contains("退款") || lowerFull.contains("退回") || lowerFull.contains("refund") || lowerFull.contains("reversal") {
+                detectedType = .refund
+            } else if lowerFull.contains("轉帳") || lowerFull.contains("轉賬") || lowerFull.contains("轉數快") ||
+                      lowerFull.contains("fps") || lowerFull.contains("transfer") {
+                detectedType = .transfer
+            } else if lowerFull.contains("手續費") || lowerFull.contains("服務費") || lowerFull.contains("handling fee") {
+                detectedType = .fee
+            }
         }
 
         // 2. Extract Key-Value Pairs from lines and comma-delimited segments
@@ -319,7 +560,7 @@ public final class VisionOCRService: Sendable {
 
         var pendingScoreInheritance: Int = 0
 
-        for line in sanitizedLines {
+        for line in effectiveLines {
             var trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty { continue }
 
@@ -490,6 +731,26 @@ public final class VisionOCRService: Sendable {
 
         let primaryAmount: Int64? = sortedEligible.first?.amount ?? foundMinorAmounts.first
         let hasAmbiguousAmounts = foundMinorAmounts.count > 1
+
+        // Refinement A: Role-Anchored Dual Extraction (DualNumberRoleExtractor)
+        let dualRoles = VisionOCRService.extractDualNumberRoles(fullText)
+        let remainingBalanceMinor = dualRoles.balanceMinor
+
+        var finalPrimaryAmount: Int64? = primaryAmount
+
+        // Self-Correction Rule:
+        // If primaryAmount matches balanceCandidate (where S_balance > S_spend),
+        // deterministically reject it and substitute spentCandidate.
+        if let bal = dualRoles.balanceMinor, finalPrimaryAmount == bal {
+            finalPrimaryAmount = dualRoles.spentMinor
+        } else if finalPrimaryAmount == nil, let spent = dualRoles.spentMinor {
+            finalPrimaryAmount = spent
+        }
+
+        // If overall intent was classified as loan or OTP, spent amount must be nil
+        if primaryIntent == .loanOrPromoOffer || primaryIntent == .otpOrAuthAttempt {
+            finalPrimaryAmount = nil
+        }
 
         // 4. Extract Merchant
         var merchantCandidate: String? = kvMerchantRaw.map { VisionOCRService.cleanMerchantName($0) }
@@ -671,13 +932,13 @@ public final class VisionOCRService: Sendable {
         }
 
         // 6. Confidence Scoring (§5.5 / ATM-12)
-        let amountConf: Float = hasAmbiguousAmounts ? 0.5 : (primaryAmount != nil ? 1.0 : 0.0)
+        let amountConf: Float = hasAmbiguousAmounts ? 0.5 : (finalPrimaryAmount != nil ? 1.0 : 0.0)
         let merchantConf: Float = merchantCandidate != nil ? (kvMerchantRaw != nil ? 1.0 : 0.9) : 0.0
 
         return OCRResult(
             provider: provider,
             currency: detectedCurrency,
-            amountMinor: primaryAmount,
+            amountMinor: finalPrimaryAmount,
             candidateAmountsMinor: foundMinorAmounts,
             merchantRaw: merchantCandidate ?? "Unknown Merchant",
             sourceTransactionId: txIdCandidate,
@@ -686,8 +947,12 @@ public final class VisionOCRService: Sendable {
             merchantConfidence: merchantConf,
             ocrEngineVersion: "AppleVision-v1.0",
             ocrTemplateVersion: "Alipay-v1.3",
-            requiresManualReview: hasAmbiguousAmounts || primaryAmount == nil || merchantCandidate == nil,
-            transactionType: detectedType
+            requiresManualReview: hasAmbiguousAmounts || finalPrimaryAmount == nil || merchantCandidate == nil || isHypo,
+            transactionType: detectedType,
+            intent: primaryIntent,
+            remainingBalanceMinor: remainingBalanceMinor,
+            isHypotheticalOrConditional: isHypo,
+            evidencePhrase: evidencePhrase
         )
     }
 

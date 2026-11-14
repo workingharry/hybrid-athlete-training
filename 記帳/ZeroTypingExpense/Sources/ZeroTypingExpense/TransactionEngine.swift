@@ -7,6 +7,26 @@ public actor TransactionEngine {
     private var refunds: [UUID: [RefundEntity]] = [:] // originalTransactionId -> refunds
     private var pairedDuplicates: [UUID: UUID] = [:] // newTx -> candidateTx
 
+    public struct BalanceSnapshot: Codable, Sendable, Equatable {
+        public let balanceMinor: Int64
+        public let updatedAt: Date
+
+        public init(balanceMinor: Int64, updatedAt: Date = Date()) {
+            self.balanceMinor = balanceMinor
+            self.updatedAt = updatedAt
+        }
+    }
+
+    private var balanceLedger: [String: BalanceSnapshot] = [:]
+
+    public func getBalanceSnapshot(key: String) -> BalanceSnapshot? {
+        return balanceLedger[key]
+    }
+
+    public func setBalanceSnapshot(key: String, snapshot: BalanceSnapshot) {
+        balanceLedger[key] = snapshot
+    }
+
     public init() {}
 
     public enum EngineError: Error, Equatable {
@@ -31,34 +51,93 @@ public actor TransactionEngine {
         }
 
         var newTx = transaction
+        let effectiveDate = newTx.transactionDate ?? newTx.capturedAt
+        let genericMerchants = ["", "octopus", "八達通", "transit", "快捷交通卡", "apple pay", "unknown merchant"]
 
-        // If amount is zero (transit hold / pre-auth hold)
+        // 1.5 Stateful BalanceLedger & Inferred Spent for Octopus
+        let ledgerKey = "\(newTx.provider.rawValue):default"
+        if newTx.provider == .octopus {
+            let prevSnapshot = balanceLedger[ledgerKey]
+            if let newBalance = newTx.remainingBalanceMinor {
+                if let spent = newTx.amountMinor, spent > 0 {
+                    if let prev = prevSnapshot {
+                        if newBalance < -5000 || (prev.balanceMinor - spent < -5000) {
+                            // Octopus negative buffer violation (-HK$50) or swapped numbers
+                            newTx.reviewStatus = .needsReview
+                        } else if prev.balanceMinor - spent == newBalance {
+                            newTx.amountConfidence = 1.0
+                        }
+                    }
+                    balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                } else if newTx.amountMinor == nil || newTx.amountMinor == 0 {
+                    // Only balance is known (e.g. Apple Pay Octopus $0 tap + balance alert)
+                    if let prev = prevSnapshot {
+                        let diff = prev.balanceMinor - newBalance
+                        if diff > 0 && diff <= 300_000 { // <= HK$3,000
+                            newTx.amountMinor = diff
+                            newTx.ledgerAmountMinor = diff
+                            newTx.paymentStatus = .completed
+                            newTx.reviewStatus = .needsReview
+                            balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                        } else if newBalance > prev.balanceMinor {
+                            // Silent Top-Up / AAVS (e.g. $15.00 -> $495.00)
+                            balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                            newTx.transactionType = .topUp
+                            newTx.amountMinor = newBalance - prev.balanceMinor
+                            newTx.ledgerAmountMinor = newTx.amountMinor
+                            newTx.paymentStatus = .completed
+                            newTx.reviewStatus = .confirmed
+                        }
+                    } else {
+                        balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                    }
+                }
+            }
+        }
+
+        // If amount is zero (transit hold / pre-auth hold): store in amountIndex[0] and return
         if let amt = newTx.amountMinor, amt == 0 {
             newTx.paymentStatus = .pending
             newTx.reviewStatus = .needsReview
+            newTx.isHoldCandidate = true
+            transactions[newTx.id] = newTx
+            idempotencyIndex[newTx.idempotencyKey] = newTx.id
+            amountIndex[0, default: []].append(newTx.id)
+            return newTx
         } else if let amt = newTx.amountMinor, amt > 0 {
-            // Transit Hold Matching:
-            // If an existing transaction has amountMinor == 0 (or paymentStatus == .pending)
-            // for the same provider, merchant, and deviceSource within 24 hours,
-            // pair with the chronologically closest hold and update rather than creating a duplicate.
+            // Tiered Hold Matching:
             let newEffectiveDate = newTx.transactionDate ?? newTx.capturedAt
             let zeroHoldIds = amountIndex[0] ?? []
             let eligibleHolds = zeroHoldIds.compactMap { transactions[$0] }.filter { candidate in
-                guard candidate.provider == newTx.provider,
-                      candidate.deviceSource == newTx.deviceSource,
-                      (candidate.amountMinor == 0 || candidate.paymentStatus == .pending) else {
+                guard (candidate.amountMinor == 0 || candidate.paymentStatus == .pending) else {
                     return false
                 }
-                
-                // Fuzzy/Canonical merchant matching ("MTR" vs "MTR Corporation Limited")
-                let m1 = (candidate.merchantCanonical ?? candidate.merchantRaw ?? "").lowercased()
-                let m2 = (newTx.merchantCanonical ?? newTx.merchantRaw ?? "").lowercased()
-                let merchantMatches = (m1 == m2) || (!m1.isEmpty && !m2.isEmpty && (m1.contains(m2) || m2.contains(m1)))
-                guard merchantMatches else { return false }
 
                 let candidateEffectiveDate = candidate.transactionDate ?? candidate.capturedAt
                 let timeDiff = abs(newEffectiveDate.timeIntervalSince(candidateEffectiveDate))
-                return timeDiff <= 86400 // 24 hours
+
+                if newTx.provider == .octopus {
+                    // Octopus Hold Match: same provider, cross-device permitted, window <= 15 min (900s)
+                    guard candidate.provider == .octopus else { return false }
+                    guard timeDiff <= 900 else { return false }
+                    let m1 = (candidate.merchantCanonical ?? candidate.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                    let m2 = (newTx.merchantCanonical ?? newTx.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                    let isGenericM1 = genericMerchants.contains(m1) || m1.isEmpty
+                    let isGenericM2 = genericMerchants.contains(m2) || m2.isEmpty
+                    let merchantMatches = isGenericM1 || isGenericM2 || (m1 == m2) || (!m1.isEmpty && !m2.isEmpty && (m1.contains(m2) || m2.contains(m1)))
+                    return merchantMatches
+                } else {
+                    // Contactless Card Transit Pre-Auth (e.g. Visa/Mastercard MTR tap)
+                    guard candidate.provider == newTx.provider,
+                          candidate.deviceSource == newTx.deviceSource else {
+                        return false
+                    }
+                    guard timeDiff <= 86400 else { return false } // 24 hours
+                    let m1 = (candidate.merchantCanonical ?? candidate.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                    let m2 = (newTx.merchantCanonical ?? newTx.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                    let merchantMatches = (m1 == m2) || (!m1.isEmpty && !m2.isEmpty && (m1.contains(m2) || m2.contains(m1)))
+                    return merchantMatches
+                }
             }
 
             // Pick the hold closest in time to the settlement
@@ -69,12 +148,11 @@ public actor TransactionEngine {
             }
 
             if let hold = matchingHold {
-                if let oldAmt = hold.amountMinor {
-                    amountIndex[oldAmt]?.removeAll(where: { $0 == hold.id })
-                    if amountIndex[oldAmt]?.isEmpty == true {
-                        amountIndex.removeValue(forKey: oldAmt)
-                    }
+                amountIndex[0]?.removeAll(where: { $0 == hold.id })
+                if amountIndex[0]?.isEmpty == true {
+                    amountIndex.removeValue(forKey: 0)
                 }
+
                 var updatedHold = hold
                 updatedHold.amountMinor = newTx.amountMinor
                 updatedHold.ledgerAmountMinor = newTx.ledgerAmountMinor ?? newTx.amountMinor
@@ -82,9 +160,22 @@ public actor TransactionEngine {
                 updatedHold.ledgerCurrency = newTx.ledgerCurrency ?? updatedHold.ledgerCurrency
                 updatedHold.paymentStatus = .completed
                 updatedHold.reviewStatus = .confirmed
+                updatedHold.isHoldCandidate = false
                 updatedHold.transactionDate = newTx.transactionDate ?? updatedHold.transactionDate
                 updatedHold.sourceTransactionId = newTx.sourceTransactionId ?? updatedHold.sourceTransactionId
+
+                // Upgrade generic merchant name
+                let holdRaw = (hold.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                let isHoldGeneric = genericMerchants.contains(holdRaw) || holdRaw.isEmpty
+                if isHoldGeneric, let newM = newTx.merchantRaw, !genericMerchants.contains(newM.lowercased()) {
+                    updatedHold.merchantRaw = newTx.merchantRaw
+                    updatedHold.merchantCanonical = newTx.merchantCanonical ?? newTx.merchantRaw
+                }
+                if updatedHold.remainingBalanceMinor == nil {
+                    updatedHold.remainingBalanceMinor = newTx.remainingBalanceMinor
+                }
                 updatedHold.updatedAt = Date()
+
                 transactions[updatedHold.id] = updatedHold
                 idempotencyIndex[newTx.idempotencyKey] = updatedHold.id
                 if let newAmt = updatedHold.amountMinor {
@@ -101,14 +192,22 @@ public actor TransactionEngine {
             let candidateIds = amountIndex[amt] ?? []
             let possibleDup = candidateIds.compactMap { transactions[$0] }.first { candidate in
                 guard candidate.id != newTx.id,
-                      candidate.merchantCanonical == newTx.merchantCanonical || candidate.merchantRaw == newTx.merchantRaw,
                       candidate.amountMinor == newTx.amountMinor,
                       candidate.currency == newTx.currency else {
                     return false
                 }
 
-                // If both have distinct sourceTransactionIds from payment provider, they are distinct purchases
-                if let s1 = candidate.sourceTransactionId, let s2 = newTx.sourceTransactionId, !s1.isEmpty, !s2.isEmpty, s1 != s2 {
+                let m1 = (candidate.merchantCanonical ?? candidate.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                let m2 = (newTx.merchantCanonical ?? newTx.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                let isGenericM1 = genericMerchants.contains(m1) || m1.isEmpty
+                let isGenericM2 = genericMerchants.contains(m2) || m2.isEmpty
+                let merchantMatches = isGenericM1 || isGenericM2 || (m1 == m2) || (!m1.isEmpty && !m2.isEmpty && (m1.contains(m2) || m2.contains(m1)))
+                guard merchantMatches else { return false }
+
+                // If both have distinct sourceTransactionIds from the same ingestion source, they are distinct purchases
+                if candidate.ingestionSource == newTx.ingestionSource,
+                   let s1 = candidate.sourceTransactionId, let s2 = newTx.sourceTransactionId,
+                   !s1.isEmpty, !s2.isEmpty, s1 != s2 {
                     return false
                 }
 
@@ -117,11 +216,34 @@ public actor TransactionEngine {
                 return timeDiff <= 120 // Within 2 minutes
             }
 
-            if let dupCandidate = possibleDup {
-                newTx.duplicateStatus = .possibleDuplicate
-                pairedDuplicates[newTx.id] = dupCandidate.id
-                if newTx.reviewStatus == .confirmed {
-                    newTx.reviewStatus = .needsReview
+            if var dupCandidate = possibleDup {
+                if dupCandidate.ingestionSource != newTx.ingestionSource {
+                    // Cross-source capture (e.g. Wallet Shortcut + Bank Notification OCR ~5s apart): Merge & Enrich!
+                    if dupCandidate.sourceTransactionId == nil || dupCandidate.sourceTransactionId?.isEmpty == true {
+                        dupCandidate.sourceTransactionId = newTx.sourceTransactionId
+                    }
+                    if dupCandidate.remainingBalanceMinor == nil {
+                        dupCandidate.remainingBalanceMinor = newTx.remainingBalanceMinor
+                    }
+                    let candRaw = (dupCandidate.merchantRaw ?? "").lowercased().trimmingCharacters(in: .whitespaces)
+                    if genericMerchants.contains(candRaw) || candRaw.isEmpty {
+                        if let newM = newTx.merchantRaw, !genericMerchants.contains(newM.lowercased()) {
+                            dupCandidate.merchantRaw = newTx.merchantRaw
+                            dupCandidate.merchantCanonical = newTx.merchantCanonical ?? newTx.merchantRaw
+                        }
+                    }
+                    dupCandidate.reviewStatus = .confirmed
+                    dupCandidate.updatedAt = Date()
+                    transactions[dupCandidate.id] = dupCandidate
+                    idempotencyIndex[newTx.idempotencyKey] = dupCandidate.id
+                    return dupCandidate
+                } else {
+                    newTx.duplicateStatus = .possibleDuplicate
+                    pairedDuplicates[newTx.id] = dupCandidate.id
+                    pairedDuplicates[dupCandidate.id] = newTx.id
+                    if newTx.reviewStatus == .confirmed {
+                        newTx.reviewStatus = .needsReview
+                    }
                 }
             }
         }

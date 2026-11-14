@@ -514,11 +514,27 @@ public final class AppState: ObservableObject {
         }
 
         switch action {
-        case .record(let amountMinor, let currency, let merchant, let categoryName, _):
-            guard amountMinor > 0 else {
+        case .record(let amountMinor, let currency, let merchant, let categoryName, let notes):
+            let lowerMerchant = merchant.lowercased()
+            let isTransitOrOctopus = lowerMerchant.contains("octopus") ||
+                                     lowerMerchant.contains("八達通") ||
+                                     lowerMerchant.contains("mtr") ||
+                                     lowerMerchant.contains("港鐵") ||
+                                     lowerMerchant.contains("九巴") ||
+                                     lowerMerchant.contains("kmb") ||
+                                     lowerMerchant.contains("城巴") ||
+                                     lowerMerchant.contains("新巴") ||
+                                     lowerMerchant.contains("天星小輪") ||
+                                     lowerMerchant.contains("輕鐵") ||
+                                     lowerMerchant.contains("電車") ||
+                                     lowerMerchant.contains("交通")
+
+            let isTransitHold = (notes?.contains("[transit_hold]") == true) || (notes?.localizedCaseInsensitiveContains("preauth") == true)
+            if amountMinor == 0 && !isTransitHold {
                 self.urlActionToastMessage = "金額為 0 元，已忽略不計入記錄"
                 return .error("金額為 0 元，已忽略不計入記錄")
             }
+
             let effectiveTxId = "URL-\(UUID().uuidString.prefix(8))"
             let idempotencyKey = "url_\(effectiveTxId)_\(amountMinor)"
 
@@ -530,21 +546,28 @@ public final class AppState: ObservableObject {
                 }
             }
 
+            let isHold = (amountMinor == 0) && isTransitHold
+            let effectiveProvider: PaymentProvider = isTransitOrOctopus ? .octopus : .applePay
+            let reviewStatus: ReviewStatus = isHold ? .needsReview : .confirmed
+            let paymentStatus: PaymentStatus = isHold ? .pending : .completed
+
             let tx = TransactionEntity(
                 idempotencyKey: idempotencyKey,
-                provider: .applePay,
+                provider: effectiveProvider,
                 captureChannel: .urlScheme,
                 deviceSource: .iPhone,
+                ingestionSource: .walletShortcut,
                 sourceTransactionId: effectiveTxId,
                 merchantRaw: merchant,
                 merchantCanonical: merchant,
                 amountMinor: amountMinor,
+                isHoldCandidate: isHold,
                 currency: currency,
                 ledgerAmountMinor: amountMinor,
                 ledgerCurrency: currency,
-                categoryId: resolvedCatId,
-                reviewStatus: .confirmed,
-                paymentStatus: .completed,
+                categoryId: isTransitOrOctopus ? AppState.transportCategoryId : resolvedCatId,
+                reviewStatus: reviewStatus,
+                paymentStatus: paymentStatus,
                 duplicateStatus: .unique,
                 transactionType: .payment,
                 amountConfidence: 1.0,

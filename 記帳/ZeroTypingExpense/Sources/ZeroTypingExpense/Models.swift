@@ -25,6 +25,22 @@ public enum CaptureChannel: String, Codable, Sendable, CaseIterable {
     case manualImport = "manualImport"
 }
 
+public enum IngestionSource: String, Codable, Sendable, CaseIterable {
+    case walletShortcut = "walletShortcut"
+    case notificationOCR = "notificationOCR"
+    case clipboard = "clipboard"
+    case manual = "manual"
+}
+
+public enum NotificationIntent: String, Codable, Sendable, CaseIterable {
+    case confirmedExpenditure       // Actual completed purchase/deduction
+    case refundOrReversal           // Money returned to user
+    case topUpOrInternalTransfer    // Octopus AAVS/reload, FPS to self, card bill payment
+    case loanOrPromoOffer           // Loans, installment ads, cashback targets, coupons
+    case balanceInquiryOnly         // Balance update without a spend amount
+    case otpOrAuthAttempt           // 3DS OTP / incomplete auth
+}
+
 public enum ReviewStatus: String, Codable, Sendable, CaseIterable {
     case confirmed
     case needsCategory
@@ -208,6 +224,9 @@ public struct TransactionEntity: Identifiable, Codable, Sendable, Equatable {
     public var ocrTemplateVersion: String?
     public var candidateAmountsMinor: [Int64]
     public var isHidden: Bool
+    public var ingestionSource: IngestionSource
+    public var remainingBalanceMinor: Int64?
+    public var isHoldCandidate: Bool
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -217,10 +236,13 @@ public struct TransactionEntity: Identifiable, Codable, Sendable, Equatable {
         provider: PaymentProvider,
         captureChannel: CaptureChannel,
         deviceSource: DeviceSource = .iPhone,
+        ingestionSource: IngestionSource = .manual,
         sourceTransactionId: String? = nil,
         merchantRaw: String? = nil,
         merchantCanonical: String? = nil,
         amountMinor: Int64? = nil,
+        remainingBalanceMinor: Int64? = nil,
+        isHoldCandidate: Bool = false,
         candidateAmountsMinor: [Int64] = [],
         currency: String? = nil,
         ledgerAmountMinor: Int64? = nil,
@@ -252,10 +274,13 @@ public struct TransactionEntity: Identifiable, Codable, Sendable, Equatable {
         self.provider = provider
         self.captureChannel = captureChannel
         self.deviceSource = deviceSource
+        self.ingestionSource = ingestionSource
         self.sourceTransactionId = sourceTransactionId
         self.merchantRaw = merchantRaw
         self.merchantCanonical = merchantCanonical
         self.amountMinor = amountMinor
+        self.remainingBalanceMinor = remainingBalanceMinor
+        self.isHoldCandidate = isHoldCandidate
         self.candidateAmountsMinor = candidateAmountsMinor
         self.currency = currency
         self.ledgerAmountMinor = ledgerAmountMinor

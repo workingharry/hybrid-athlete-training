@@ -54,6 +54,7 @@ public struct URLSchemeHandler: Sendable {
         var rawCurrency: String?
         var rawCategory: String?
         var rawNotes: String?
+        var isTransitHoldQuery: Bool = false
 
         // If query contains notes=, robustly extract the tail to avoid premature splitting on unencoded & or #
         if let fullQuery = url.query, let range = fullQuery.range(of: "notes=") {
@@ -76,6 +77,12 @@ public struct URLSchemeHandler: Sendable {
                 if rawNotes == nil {
                     rawNotes = item.value
                 }
+            case "hold", "preauth", "istransitpreauth":
+                isTransitHoldQuery = (item.value?.lowercased() == "true" || item.value == "1" || item.value == nil)
+            case "provider":
+                if item.value?.lowercased() == "octopus" {
+                    isTransitHoldQuery = true
+                }
             default:
                 break
             }
@@ -85,7 +92,11 @@ public struct URLSchemeHandler: Sendable {
         var cleanMerchant = rawMerchant.map { sanitizeFormula($0) }
         var cleanCurrency = sanitizeFormula(rawCurrency ?? "HKD").uppercased()
         let cleanCategory = rawCategory.map { sanitizeFormula($0) }
-        let cleanNotes = rawNotes.map { sanitizeFormula($0) }
+        var cleanNotes = rawNotes.map { sanitizeFormula($0) }
+
+        if isTransitHoldQuery {
+            cleanNotes = (cleanNotes != nil ? "\(cleanNotes!) [transit_hold]" : "[transit_hold]")
+        }
 
         // If rawAmount or merchant is missing, parse notes with VisionOCRService
         if let notes = cleanNotes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
