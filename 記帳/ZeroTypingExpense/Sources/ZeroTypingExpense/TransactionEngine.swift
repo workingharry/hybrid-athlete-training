@@ -33,13 +33,14 @@ public actor TransactionEngine {
         case duplicateIdempotencyKey(String)
         case transactionNotFound(UUID)
         case invalidAmount
+        case zeroAmountNotAllowed
         case currencyMismatch
         case refundExceedsOriginal
     }
 
     /// Ingestion Entrypoint with double-layer idempotency protection (§8.5) and hardened boundary checks
     public func ingestTransaction(_ transaction: TransactionEntity) throws -> TransactionEntity {
-        // 0. Boundary Guard: Reject negative or corrupted amounts
+        // 0. Boundary Guard: Reject negative amounts
         if let amt = transaction.amountMinor, amt < 0 {
             throw EngineError.invalidAmount
         }
@@ -52,58 +53,85 @@ public actor TransactionEngine {
 
         var newTx = transaction
         let effectiveDate = newTx.transactionDate ?? newTx.capturedAt
-        let genericMerchants = ["", "octopus", "八達通", "transit", "快捷交通卡", "apple pay", "unknown merchant"]
+        let genericMerchants = ["", "octopus", "八達通", "transit", "快捷交通卡", "apple pay", "unknown", "未知商戶", "unknown merchant"]
 
-        // 1.5 Stateful BalanceLedger & Inferred Spent for Octopus
+        // 2.5 Stateful BalanceLedger Engine Pre-Check & Delta Inference
         let ledgerKey = "\(newTx.provider.rawValue):default"
         if newTx.provider == .octopus {
             let prevSnapshot = balanceLedger[ledgerKey]
             if let newBalance = newTx.remainingBalanceMinor {
-                if let spent = newTx.amountMinor, spent > 0 {
-                    if let prev = prevSnapshot {
-                        if newBalance < -5000 || (prev.balanceMinor - spent < -5000) {
-                            // Octopus negative buffer violation (-HK$50) or swapped numbers
-                            newTx.reviewStatus = .needsReview
-                        } else if prev.balanceMinor - spent == newBalance {
+                // Guard 0: Negative Buffer & Ceiling Anomaly Guard (Octopus bounds [-5000, 300000])
+                if newBalance < -5000 || newBalance > 300_000 || (prevSnapshot != nil && (newTx.amountMinor ?? 0) > 0 && prevSnapshot!.balanceMinor - (newTx.amountMinor ?? 0) < -5000) {
+                    newTx.reviewStatus = .needsReview
+                }
+
+                // State 0: Cold-Start Initialization
+                if prevSnapshot == nil {
+                    balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                    if newTx.transactionType == .topUp || (newTx.amountMinor == nil || newTx.amountMinor == 0) {
+                        newTx.paymentStatus = .completed
+                        newTx.reviewStatus = .confirmed
+                        transactions[newTx.id] = newTx
+                        return newTx
+                    }
+                } else if let prev = prevSnapshot {
+                    // State 1: Silent Top-Up / AAVS Detection
+                    if newTx.transactionType == .topUp || newBalance > prev.balanceMinor {
+                        balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                        newTx.transactionType = .topUp
+                        newTx.amountMinor = newBalance - prev.balanceMinor
+                        newTx.ledgerAmountMinor = newTx.amountMinor
+                        newTx.paymentStatus = .completed
+                        newTx.reviewStatus = .confirmed
+                        transactions[newTx.id] = newTx
+                        return newTx
+                    } else if let spent = newTx.amountMinor, spent > 0 {
+                        // State 2: Dual Match Verification
+                        if prev.balanceMinor - spent == newBalance {
                             newTx.amountConfidence = 1.0
                         }
-                    }
-                    balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
-                } else if newTx.amountMinor == nil || newTx.amountMinor == 0 {
-                    // Only balance is known (e.g. Apple Pay Octopus $0 tap + balance alert)
-                    if let prev = prevSnapshot {
+                        balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
+                    } else if newTx.amountMinor == nil || newTx.amountMinor == 0 {
+                        // State 3: Inferred Spent Recovery
                         let diff = prev.balanceMinor - newBalance
-                        if diff > 0 && diff <= 300_000 { // <= HK$3,000
+                        if diff > 0 && diff <= 300_000 {
                             newTx.amountMinor = diff
                             newTx.ledgerAmountMinor = diff
                             newTx.paymentStatus = .completed
                             newTx.reviewStatus = .needsReview
                             balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
-                        } else if newBalance > prev.balanceMinor {
-                            // Silent Top-Up / AAVS (e.g. $15.00 -> $495.00)
-                            balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
-                            newTx.transactionType = .topUp
-                            newTx.amountMinor = newBalance - prev.balanceMinor
-                            newTx.ledgerAmountMinor = newTx.amountMinor
-                            newTx.paymentStatus = .completed
-                            newTx.reviewStatus = .confirmed
                         }
-                    } else {
-                        balanceLedger[ledgerKey] = BalanceSnapshot(balanceMinor: newBalance, updatedAt: effectiveDate)
                     }
                 }
             }
         }
 
-        // If amount is zero (transit hold / pre-auth hold): store in amountIndex[0] and return
+        // Stage 3: ZeroDollarGate
         if let amt = newTx.amountMinor, amt == 0 {
-            newTx.paymentStatus = .pending
-            newTx.reviewStatus = .needsReview
-            newTx.isHoldCandidate = true
-            transactions[newTx.id] = newTx
-            idempotencyIndex[newTx.idempotencyKey] = newTx.id
-            amountIndex[0, default: []].append(newTx.id)
-            return newTx
+            let m = (newTx.merchantCanonical ?? newTx.merchantRaw ?? "").lowercased()
+            let transitKeywords = ["mtr", "港鐵", "transit", "transport", "kmb", "九巴", "citybus", "城巴", "ferry", "tram", "octopus", "八達通"]
+            let isTransitMerchant = transitKeywords.contains { m.contains($0) }
+            let isTransitHold = newTx.remainingBalanceMinor == nil && (newTx.provider == .octopus || newTx.isHoldCandidate || isTransitMerchant || newTx.captureChannel == .walletAutomation)
+
+            if isTransitHold {
+                // Transit Hold Candidate: store in amountIndex[0]
+                newTx.paymentStatus = .pending
+                newTx.reviewStatus = .needsReview
+                newTx.isHoldCandidate = true
+                transactions[newTx.id] = newTx
+                idempotencyIndex[newTx.idempotencyKey] = newTx.id
+                amountIndex[0, default: []].append(newTx.id)
+                return newTx
+            } else if newTx.captureChannel == .photoPicker || newTx.captureChannel == .backTap || newTx.captureChannel == .actionButton || newTx.captureChannel == .shareSheet {
+                // Unresolved Screenshot OCR: Relegated to (.pending, .needsReview), excluded from amountIndex[0] and active budget
+                newTx.paymentStatus = .pending
+                newTx.reviewStatus = .needsReview
+                transactions[newTx.id] = newTx
+                idempotencyIndex[newTx.idempotencyKey] = newTx.id
+                return newTx
+            } else {
+                throw EngineError.zeroAmountNotAllowed
+            }
         } else if let amt = newTx.amountMinor, amt > 0 {
             // Tiered Hold Matching:
             let newEffectiveDate = newTx.transactionDate ?? newTx.capturedAt
@@ -238,6 +266,14 @@ public actor TransactionEngine {
                     idempotencyIndex[newTx.idempotencyKey] = dupCandidate.id
                     return dupCandidate
                 } else {
+                    // Same-Source Collision:
+                    // Case 2b: Identical Provider ID -> Idempotent Replay (return existing candidate)
+                    if let s1 = dupCandidate.sourceTransactionId, let s2 = newTx.sourceTransactionId,
+                       !s1.isEmpty, !s2.isEmpty, s1 == s2 {
+                        idempotencyIndex[newTx.idempotencyKey] = dupCandidate.id
+                        return dupCandidate
+                    }
+                    // Case 2c: Missing Provider ID on either side -> Flag possibleDuplicate
                     newTx.duplicateStatus = .possibleDuplicate
                     pairedDuplicates[newTx.id] = dupCandidate.id
                     pairedDuplicates[dupCandidate.id] = newTx.id

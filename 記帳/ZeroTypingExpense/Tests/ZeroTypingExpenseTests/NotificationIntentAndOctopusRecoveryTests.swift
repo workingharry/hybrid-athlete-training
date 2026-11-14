@@ -323,4 +323,107 @@ struct NotificationIntentAndOctopusRecoveryTests {
         #expect(second.duplicateStatus == DuplicateStatus.possibleDuplicate)
         #expect(second.reviewStatus == ReviewStatus.needsReview)
     }
+
+    // MARK: - 6. Formally Verified Edge Case Invariants (ATM-01 & Stage 0 Hardening)
+
+    @Test("ATM-01: Same-source consecutive purchases with distinct provider IDs remain distinct and confirmed")
+    func testSameSourceDistinctProviderIDsAllowed() async throws {
+        let engine = TransactionEngine()
+        let now = Date()
+
+        let tx1 = TransactionEntity(
+            idempotencyKey: "pos_tap_01",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            deviceSource: .iPhone,
+            ingestionSource: .walletShortcut,
+            sourceTransactionId: "POS-REF-1001",
+            merchantRaw: "7-Eleven",
+            merchantCanonical: "7-Eleven",
+            amountMinor: 1500,
+            currency: "HKD",
+            capturedAt: now,
+            reviewStatus: .confirmed
+        )
+
+        let tx2 = TransactionEntity(
+            idempotencyKey: "pos_tap_02",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            deviceSource: .iPhone,
+            ingestionSource: .walletShortcut,
+            sourceTransactionId: "POS-REF-1002", // Distinct provider ID!
+            merchantRaw: "7-Eleven",
+            merchantCanonical: "7-Eleven",
+            amountMinor: 1500,
+            currency: "HKD",
+            capturedAt: now.addingTimeInterval(2),
+            reviewStatus: .confirmed
+        )
+
+        let res1 = try await engine.ingestTransaction(tx1)
+        let res2 = try await engine.ingestTransaction(tx2)
+
+        #expect(res1.id != res2.id)
+        #expect(res1.duplicateStatus == .unique)
+        #expect(res2.duplicateStatus == .unique)
+        #expect(res2.reviewStatus == .confirmed)
+    }
+
+    @Test("Stage 5 Case 2b: Same-source replay with identical provider ID returns original transaction")
+    func testSameSourceIdenticalProviderIDReplay() async throws {
+        let engine = TransactionEngine()
+        let now = Date()
+
+        let tx1 = TransactionEntity(
+            idempotencyKey: "replay_test_01",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            deviceSource: .iPhone,
+            ingestionSource: .walletShortcut,
+            sourceTransactionId: "TX-REPLAY-999",
+            merchantRaw: "Starbucks",
+            amountMinor: 4200,
+            currency: "HKD",
+            capturedAt: now,
+            reviewStatus: .confirmed
+        )
+
+        let tx2 = TransactionEntity(
+            idempotencyKey: "replay_test_02", // Different idempotency key but same source & provider ID
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            deviceSource: .iPhone,
+            ingestionSource: .walletShortcut,
+            sourceTransactionId: "TX-REPLAY-999",
+            merchantRaw: "Starbucks",
+            amountMinor: 4200,
+            currency: "HKD",
+            capturedAt: now.addingTimeInterval(3),
+            reviewStatus: .confirmed
+        )
+
+        let first = try await engine.ingestTransaction(tx1)
+        let second = try await engine.ingestTransaction(tx2)
+
+        #expect(second.id == first.id)
+        #expect(second.reviewStatus == .confirmed)
+    }
+
+    @Test("Stage 0: Negative lookbehind protects merchant abbreviations from clause splitting")
+    func testMerchantAbbreviationsProtection() {
+        let text = "您已於 7-Eleven Co. Ltd. 扣除 HK$28.50。感謝光臨。"
+        let clauses = VisionOCRService.segmentAndClassifyClauses(text)
+        #expect(clauses.count == 2)
+        #expect(clauses[0].text.contains("7-Eleven Co. Ltd."))
+        #expect(clauses[0].intent == .confirmedExpenditure)
+    }
+
+    @Test("Stage 0: AAVS deduction with 扣款 classifies as topUpOrInternalTransfer before expenditure")
+    func testAAVSDeductionPrecedence() {
+        let text = "已從信用卡扣款自動增值 HK$500，八達通餘額為 HK$512.50。"
+        let clauses = VisionOCRService.segmentAndClassifyClauses(text)
+        #expect(clauses.count >= 1)
+        #expect(clauses[0].intent == .topUpOrInternalTransfer)
+    }
 }

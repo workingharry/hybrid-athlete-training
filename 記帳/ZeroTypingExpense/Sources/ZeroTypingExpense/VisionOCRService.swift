@@ -183,15 +183,16 @@ public final class VisionOCRService: Sendable {
 
     /// Stage 0: Clause Segmentation + Hybrid Intent Gate
     public static func segmentAndClassifyClauses(_ rawText: String) -> [ParsedClause] {
-        var cleanRaw = VisionRegexRegistry.dotMatrixO1.replace(in: rawText, with: "00")
+        var cleanRaw = rawText.replacingOccurrences(of: #"(?<=[\d.])[Oo]{1,2}(?=[\d.]|\b)"#, with: "0", options: .regularExpression)
+        cleanRaw = VisionRegexRegistry.dotMatrixO1.replace(in: cleanRaw, with: "00")
         cleanRaw = VisionRegexRegistry.dotMatrixO2.replace(in: cleanRaw, with: "0")
         cleanRaw = VisionRegexRegistry.dotMatrixO3.replace(in: cleanRaw, with: "0")
-        let pattern = #"(?:[\n。；;|]|\.(?![0-9Oo]))"#
+        let pattern = #"(?:[\n。；;|]|(?<!\b(?:Co|Ltd|Inc|St|No|Dr))\.(\s+|$))"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
             return [classifySingleClause(cleanRaw)]
         }
         let ns = cleanRaw as NSString
-        let matches = regex.matches(in: rawText, range: NSRange(location: 0, length: ns.length))
+        let matches = regex.matches(in: cleanRaw, range: NSRange(location: 0, length: ns.length))
         var clauses: [String] = []
         var lastIdx = 0
         for m in matches {
@@ -213,43 +214,45 @@ public final class VisionOCRService: Sendable {
     public static func classifySingleClause(_ clause: String) -> ParsedClause {
         let lower = clause.lowercased()
 
-        let loanKeywords = ["貸款", "借貸", "預批", "分期", "月平息", "信用額", "最低還款", "loan", "pre-approved", "installment", "apr", "credit limit", "min pay"]
-        let promoKeywords = ["高達", "低至", "消費滿", "簽賬滿", "回贈", "獎賞", "抽獎", "up to", "as low as", "rebate", "cashback", "win"]
-        let topUpKeywords = ["自動增值", "已增值", "增值", "top up", "top-up", "reload", "aavs", "儲值", "充值"]
-        let refundKeywords = ["退款", "退回", "refund", "reversal"]
-        let settledKeywords = ["已扣除", "扣除", "已付款", "付款", "消費", "支付", "扣款", "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "payment of", "purchase", "fare", "net", "實付", "買了", "結帳"]
-        let otpKeywords = ["驗證碼", "otp", "one-time password", "3ds", "動態密碼"]
-        let balanceKeywords = ["餘額", "結餘", "現時餘額", "最新結餘", "可用餘額", "可用信用額", "剩餘儲值", "餘額為", "remaining value", "remaining balance", "balance", "bal", "avail"]
-
-        let hasOTP = otpKeywords.contains { lower.contains($0.lowercased()) }
-        if hasOTP {
+        // 1. otpOrAuthAttempt
+        let otpKeywords = ["驗證碼", "otp", "one-time password", "3ds", "動態密碼", "一次性密碼", "security code", "verification code"]
+        if otpKeywords.contains(where: { lower.contains($0.lowercased()) }) {
             return ParsedClause(text: clause, intent: .otpOrAuthAttempt, isHypotheticalOrConditional: true, evidencePhrase: nil)
         }
 
-        let hasRefund = refundKeywords.contains { lower.contains($0.lowercased()) }
-        let hasTopUp = topUpKeywords.contains { lower.contains($0.lowercased()) }
-        let hasLoan = loanKeywords.contains { lower.contains($0.lowercased()) }
-        let hasPromo = promoKeywords.contains { lower.contains($0.lowercased()) }
-        let hasSettled = settledKeywords.contains { lower.contains($0.lowercased()) }
-        let hasBalance = balanceKeywords.contains { lower.contains($0.lowercased()) }
+        // 2. topUpOrInternalTransfer (must evaluate before expenditure so AAVS deductions are not double counted)
+        let topUpKeywords = ["自動增值", "已增值", "增值", "top up", "top-up", "reload", "aavs", "儲值", "充值", "八達通增值"]
+        if topUpKeywords.contains(where: { lower.contains($0.lowercased()) }) {
+            return ParsedClause(text: clause, intent: .topUpOrInternalTransfer, isHypotheticalOrConditional: false, evidencePhrase: clause)
+        }
 
-        if hasRefund {
+        // 3. refundOrReversal
+        let refundKeywords = ["退款", "退回", "refund", "reversal", "沖正", "撤銷", "refunded", "reversed"]
+        if refundKeywords.contains(where: { lower.contains($0.lowercased()) }) {
             return ParsedClause(text: clause, intent: .refundOrReversal, isHypotheticalOrConditional: false, evidencePhrase: clause)
         }
+
+        // 4. loanOrPromoOffer
+        let loanKeywords = ["貸款", "借貸", "預批", "分期", "現金分期", "月平息", "實際年利率", "信用額", "最低還款", "loan", "pre-approved", "installment", "apr", "credit limit", "min pay"]
+        let promoKeywords = ["高達", "低至", "消費滿", "簽賬滿", "回贈", "獎賞", "抽獎", "優惠券", "up to", "as low as", "rebate", "cashback", "coupon"]
+        let hasLoan = loanKeywords.contains { lower.contains($0.lowercased()) }
+        let hasPromo = promoKeywords.contains { lower.contains($0.lowercased()) }
+
+        let settledKeywords = ["已扣除", "扣除", "已付款", "付款", "消費", "支付", "扣款", "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "payment of", "purchase", "fare", "net", "實付", "買了", "結帳"]
+        let hasSettled = settledKeywords.contains { lower.contains($0.lowercased()) }
 
         if hasLoan || (hasPromo && !hasSettled) {
             return ParsedClause(text: clause, intent: .loanOrPromoOffer, isHypotheticalOrConditional: true, evidencePhrase: nil)
         }
 
-        if hasTopUp && !hasSettled {
-            return ParsedClause(text: clause, intent: .topUpOrInternalTransfer, isHypotheticalOrConditional: false, evidencePhrase: clause)
-        }
-
+        // 5. confirmedExpenditure
         if hasSettled {
             return ParsedClause(text: clause, intent: .confirmedExpenditure, isHypotheticalOrConditional: false, evidencePhrase: clause)
         }
 
-        if hasBalance && !hasSettled {
+        // 6. balanceInquiryOnly
+        let balanceKeywords = ["餘額", "結餘", "現時餘額", "最新結餘", "可用餘額", "可用信用額", "剩餘儲值", "餘額為", "remaining value", "remaining balance", "balance", "bal", "avail"]
+        if balanceKeywords.contains(where: { lower.contains($0.lowercased()) }) {
             return ParsedClause(text: clause, intent: .balanceInquiryOnly, isHypotheticalOrConditional: false, evidencePhrase: nil)
         }
 
@@ -258,7 +261,8 @@ public final class VisionOCRService: Sendable {
 
     /// Role-Anchored Dual Extraction (DualNumberRoleExtractor)
     public static func extractDualNumberRoles(_ text: String) -> DualRoleResult {
-        var normalizedText = VisionRegexRegistry.dotMatrixO1.replace(in: text, with: "00")
+        var normalizedText = text.replacingOccurrences(of: #"(?<=[\d.])[Oo]{1,2}(?=[\d.]|\b)"#, with: "0", options: .regularExpression)
+        normalizedText = VisionRegexRegistry.dotMatrixO1.replace(in: normalizedText, with: "00")
         normalizedText = VisionRegexRegistry.dotMatrixO2.replace(in: normalizedText, with: "0")
         normalizedText = VisionRegexRegistry.dotMatrixO3.replace(in: normalizedText, with: "0")
         let ns = normalizedText as NSString
@@ -287,12 +291,20 @@ public final class VisionOCRService: Sendable {
             guard minor > 0 else { return }
 
             // Inspect prefix window up to previous punctuation/delimiter (max 25 chars before the number)
-            let start = max(0, location - 25)
-            let len = location - start
-            let rawPrefix = (len > 0 ? ns.substring(with: NSRange(location: start, length: len)) : "").lowercased()
             let delimChars = CharacterSet(charactersIn: "，,。;\n\r；|")
-            let prefixSegments = rawPrefix.components(separatedBy: delimChars)
-            let prefix = prefixSegments.last?.trimmingCharacters(in: .whitespaces) ?? rawPrefix
+            var boundIdx = 0
+            if location > 0 {
+                for j in stride(from: location - 1, through: 0, by: -1) {
+                    let scalar = ns.character(at: j)
+                    if let uni = UnicodeScalar(scalar), delimChars.contains(uni) {
+                        boundIdx = j + 1
+                        break
+                    }
+                }
+            }
+            let start = max(boundIdx, max(0, location - 25))
+            let len = location - start
+            let prefix = (len > 0 ? ns.substring(with: NSRange(location: start, length: len)) : "").lowercased().trimmingCharacters(in: .whitespaces)
 
             var sSpend = 0
             var sBalance = 0
