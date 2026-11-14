@@ -22,3 +22,6 @@ fastlane/test_output
 *.swp
 *~
 .env
+
+# Standalone App Directories
+CoreEase/
