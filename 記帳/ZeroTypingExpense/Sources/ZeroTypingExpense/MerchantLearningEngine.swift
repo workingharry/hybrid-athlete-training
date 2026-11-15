@@ -23,6 +23,35 @@ public struct MerchantRule: Identifiable, Codable, Sendable, Equatable {
         self.isUserDefined = isUserDefined
         self.lastConfirmedAt = lastConfirmedAt
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case canonicalName
+        case aliases
+        case defaultCategoryId
+        case isUserDefined
+        case lastConfirmedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        self.canonicalName = (try? container.decodeIfPresent(String.self, forKey: .canonicalName)) ?? ""
+        self.aliases = (try? container.decodeIfPresent([String].self, forKey: .aliases)) ?? []
+        self.defaultCategoryId = (try? container.decodeIfPresent(UUID.self, forKey: .defaultCategoryId)) ?? UUID()
+        self.isUserDefined = (try? container.decodeIfPresent(Bool.self, forKey: .isUserDefined)) ?? false
+        self.lastConfirmedAt = (try? container.decodeIfPresent(Date.self, forKey: .lastConfirmedAt)) ?? Date()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(canonicalName, forKey: .canonicalName)
+        try container.encode(aliases, forKey: .aliases)
+        try container.encode(defaultCategoryId, forKey: .defaultCategoryId)
+        try container.encode(isUserDefined, forKey: .isUserDefined)
+        try container.encode(lastConfirmedAt, forKey: .lastConfirmedAt)
+    }
 }
 
 public actor MerchantLearningEngine {

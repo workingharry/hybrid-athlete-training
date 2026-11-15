@@ -11,7 +11,7 @@ struct AppStateFlowTests {
         let tempUrl = FileManager.default.temporaryDirectory.appendingPathComponent("test_store_\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: tempUrl) }
 
-        let state = AppState(storageUrl: tempUrl)
+        let state = AppState(storageUrl: tempUrl, autoSeedIfEmpty: true)
         await state.load()
 
         // Verify initial seed has spec v1.3 default transactions
@@ -153,5 +153,182 @@ struct AppStateFlowTests {
         // Check remaining budget computation
         let remaining = state.monthlyBudgetRemainingMinor
         #expect(remaining == 1_500_000 - state.monthlyNetSpentMinor)
+    }
+
+    @Test("TDD 6: Backward Compatibility: Old schema JSON missing new fields decodes seamlessly without data loss or default seed overwrite")
+    @MainActor
+    func testLegacySchemaDecodingAndNoDataLoss() async throws {
+        let tempUrl = FileManager.default.temporaryDirectory.appendingPathComponent("legacy_store_\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempUrl) }
+
+        // Raw JSON simulating older version v1.4 (missing ingestionSource, isHoldCandidate, remainingBalanceMinor)
+        let legacyJSON = """
+        {
+          "version": 1,
+          "monthlyBudgetTotalMinor": 800000,
+          "categoryBudgets": {},
+          "categories": [
+            {
+              "id": "11111111-1111-1111-1111-111111111111",
+              "name": "Custom Old Category",
+              "isDefault": false,
+              "isHidden": false
+            }
+          ],
+          "transactions": [
+            {
+              "id": "22222222-2222-2222-2222-222222222222",
+              "idempotencyKey": "user_real_tx_prior_version",
+              "provider": "applePay",
+              "captureChannel": "walletAutomation",
+              "deviceSource": "iPhone",
+              "merchantRaw": "Real User Grocery Store",
+              "merchantCanonical": "Real User Grocery",
+              "amountMinor": 38900,
+              "currency": "HKD",
+              "capturedAt": 753300000.0,
+              "reviewStatus": "confirmed",
+              "paymentStatus": "completed",
+              "duplicateStatus": "unique",
+              "transactionType": "payment",
+              "candidateAmountsMinor": [],
+              "isHidden": false,
+              "createdAt": 753300000.0,
+              "updatedAt": 753300000.0
+            }
+          ],
+          "refunds": [],
+          "merchantRules": []
+        }
+        """
+
+        try legacyJSON.data(using: .utf8)?.write(to: tempUrl)
+
+        // Load into AppState (simulating app launch immediately after update)
+        let state = AppState(storageUrl: tempUrl)
+        await state.load()
+
+        // MUST preserve the user's real transaction
+        #expect(state.transactions.count == 1)
+        #expect(state.transactions.first?.idempotencyKey == "user_real_tx_prior_version")
+        #expect(state.transactions.first?.merchantRaw == "Real User Grocery Store")
+        #expect(state.transactions.first?.amountMinor == 38900)
+        #expect(state.transactions.first?.ingestionSource == .manual) // Gracefully defaulted
+        #expect(state.transactions.first?.isHoldCandidate == false)   // Gracefully defaulted
+
+        // MUST NOT have injected default seed records (seed_1_mtr, etc.)
+        #expect(!state.transactions.contains { $0.idempotencyKey.starts(with: "seed_") })
+    }
+
+    @Test("TDD 7: Protection against seed overwrite: existing file with custom transactions is never replaced by default seed records")
+    @MainActor
+    func testNeverWipeWithSeedsWhenFileExists() async throws {
+        let tempUrl = FileManager.default.temporaryDirectory.appendingPathComponent("user_store_\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempUrl) }
+
+        // Pre-create user database with 1 custom transaction
+        let userTx = TransactionEntity(
+            idempotencyKey: "unique_user_record_999",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            merchantRaw: "My Personal Coffee Shop",
+            amountMinor: 4200,
+            currency: "HKD",
+            reviewStatus: .confirmed,
+            transactionType: .payment
+        )
+        let envelope = AppStorageEnvelope(
+            version: 1,
+            monthlyBudgetTotalMinor: 500_000,
+            categoryBudgets: [:],
+            categories: AppState.defaultCategories(),
+            transactions: [userTx],
+            refunds: [],
+            merchantRules: []
+        )
+        let data = try JSONEncoder().encode(envelope)
+        try data.write(to: tempUrl)
+
+        // Simulate app update & multiple reload cycles
+        for _ in 0..<3 {
+            let reloadedState = AppState(storageUrl: tempUrl)
+            await reloadedState.load()
+
+            #expect(reloadedState.transactions.count == 1)
+            #expect(reloadedState.transactions.first?.idempotencyKey == "unique_user_record_999")
+            #expect(!reloadedState.transactions.contains { $0.idempotencyKey.starts(with: "seed_") })
+        }
+    }
+
+    @Test("TDD 8: Corrupted non-object transaction array elements do not hang parser or cause infinite loops")
+    func testCorruptedTransactionArrayElementsDoNotHang() throws {
+        let corruptedJSON = """
+        {
+          "version": 1,
+          "monthlyBudgetTotalMinor": 1000000,
+          "categoryBudgets": {},
+          "categories": [],
+          "transactions": [
+            12345,
+            "corrupted_raw_string_element",
+            {
+              "id": "33333333-3333-3333-3333-333333333333",
+              "idempotencyKey": "valid_tx_after_garbage",
+              "merchantRaw": "Surviving Grocery",
+              "amountMinor": 2500
+            }
+          ],
+          "refunds": [],
+          "merchantRules": []
+        }
+        """
+
+        let data = corruptedJSON.data(using: .utf8)!
+        let envelope = try JSONDecoder().decode(AppStorageEnvelope.self, from: data)
+        #expect(envelope.version == 1)
+    }
+
+    @Test("TDD 9: Multi-tier persistence: App data survives container reset via Keychain recovery")
+    @MainActor
+    func testAppDataSurvivesContainerResetViaKeychain() async throws {
+        let testAccount = "test_keychain_resilience_\(UUID().uuidString)"
+        defer { ZeroTypingDiskStorage.clearKeychain(account: testAccount) }
+
+        // Prepare test payload
+        let testTx = TransactionEntity(
+            idempotencyKey: "keychain_resilience_test_tx",
+            provider: .applePay,
+            captureChannel: .walletAutomation,
+            merchantRaw: "Resilience Supermarket",
+            amountMinor: 88800, // HK$888.00
+            currency: "HKD",
+            reviewStatus: .confirmed,
+            transactionType: .payment
+        )
+        let envelope = AppStorageEnvelope(
+            version: 1,
+            monthlyBudgetTotalMinor: 2_000_000,
+            categoryBudgets: [:],
+            categories: AppState.defaultCategories(),
+            transactions: [testTx],
+            refunds: [],
+            merchantRules: []
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(envelope)
+
+        // Store directly to Keychain under isolated test account
+        ZeroTypingDiskStorage.saveToKeychain(data: data, account: testAccount)
+
+        // Verify loadEnvelope restores from Keychain when disk file is non-existent
+        let storage = ZeroTypingDiskStorage()
+        let nonExistentURL = FileManager.default.temporaryDirectory.appendingPathComponent("phantom_\(UUID().uuidString).json")
+        let loadedEnvelope = try await storage.loadEnvelope(from: nonExistentURL, keychainAccount: testAccount)
+
+        #expect(loadedEnvelope.transactions.contains { $0.idempotencyKey == "keychain_resilience_test_tx" })
+        #expect(loadedEnvelope.transactions.first?.amountMinor == 88800)
+        #expect(!loadedEnvelope.transactions.contains { $0.idempotencyKey.starts(with: "seed_") })
     }
 }

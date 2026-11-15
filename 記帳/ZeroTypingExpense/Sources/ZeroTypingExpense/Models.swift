@@ -124,6 +124,32 @@ public struct CategoryEntity: Identifiable, Codable, Sendable, Equatable {
         self.isHidden = isHidden
         self.mergedIntoId = mergedIntoId
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case isDefault
+        case isHidden
+        case mergedIntoId
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        self.name = (try? container.decodeIfPresent(String.self, forKey: .name)) ?? "未命名"
+        self.isDefault = (try? container.decodeIfPresent(Bool.self, forKey: .isDefault)) ?? false
+        self.isHidden = (try? container.decodeIfPresent(Bool.self, forKey: .isHidden)) ?? false
+        self.mergedIntoId = try? container.decodeIfPresent(UUID.self, forKey: .mergedIntoId)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(isDefault, forKey: .isDefault)
+        try container.encode(isHidden, forKey: .isHidden)
+        try container.encodeIfPresent(mergedIntoId, forKey: .mergedIntoId)
+    }
 }
 
 public struct RefundEntity: Identifiable, Codable, Sendable, Equatable {
@@ -151,6 +177,42 @@ public struct RefundEntity: Identifiable, Codable, Sendable, Equatable {
         self.currency = currency
         self.kind = kind
         self.occurredAt = occurredAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case originalTransactionId
+        case refundTransactionId
+        case amountMinor
+        case currency
+        case kind
+        case occurredAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = (try? container.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        self.originalTransactionId = (try? container.decodeIfPresent(UUID.self, forKey: .originalTransactionId)) ?? UUID()
+        self.refundTransactionId = try? container.decodeIfPresent(UUID.self, forKey: .refundTransactionId)
+        self.amountMinor = (try? container.decodeIfPresent(Int64.self, forKey: .amountMinor)) ?? 0
+        self.currency = (try? container.decodeIfPresent(String.self, forKey: .currency)) ?? "HKD"
+        if let rawKind = try? container.decodeIfPresent(String.self, forKey: .kind) {
+            self.kind = RefundKind(rawValue: rawKind) ?? .full
+        } else {
+            self.kind = .full
+        }
+        self.occurredAt = (try? container.decodeIfPresent(Date.self, forKey: .occurredAt)) ?? Date()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(originalTransactionId, forKey: .originalTransactionId)
+        try container.encodeIfPresent(refundTransactionId, forKey: .refundTransactionId)
+        try container.encode(amountMinor, forKey: .amountMinor)
+        try container.encode(currency, forKey: .currency)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(occurredAt, forKey: .occurredAt)
     }
 }
 
@@ -306,5 +368,177 @@ public struct TransactionEntity: Identifiable, Codable, Sendable, Equatable {
         self.isHidden = isHidden
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case idempotencyKey
+        case provider
+        case captureChannel
+        case deviceSource
+        case sourceTransactionId
+        case merchantRaw
+        case merchantCanonical
+        case amountMinor
+        case currency
+        case ledgerAmountMinor
+        case ledgerCurrency
+        case exchangeRate
+        case exchangeRateDate
+        case exchangeRateSource
+        case categoryId
+        case transactionDate
+        case transactionTimeZone
+        case capturedAt
+        case reviewStatus
+        case paymentStatus
+        case duplicateStatus
+        case transactionType
+        case amountConfidence
+        case currencyConfidence
+        case merchantConfidence
+        case categoryConfidence
+        case transactionTypeConfidence
+        case ocrEngineVersion
+        case ocrTemplateVersion
+        case candidateAmountsMinor
+        case isHidden
+        case ingestionSource
+        case remainingBalanceMinor
+        case isHoldCandidate
+        case createdAt
+        case updatedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // 1. Identifiers & core identity
+        self.id = (try? container.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        self.idempotencyKey = (try? container.decodeIfPresent(String.self, forKey: .idempotencyKey)) ?? self.id.uuidString
+
+        // 2. Resilient enum decodings (safe against missing keys or newly introduced cases)
+        if let rawProvider = try? container.decodeIfPresent(String.self, forKey: .provider) {
+            self.provider = PaymentProvider(rawValue: rawProvider) ?? .other
+        } else {
+            self.provider = .other
+        }
+
+        if let rawChannel = try? container.decodeIfPresent(String.self, forKey: .captureChannel) {
+            self.captureChannel = CaptureChannel(rawValue: rawChannel) ?? .walletAutomation
+        } else {
+            self.captureChannel = .walletAutomation
+        }
+
+        if let rawDevice = try? container.decodeIfPresent(String.self, forKey: .deviceSource) {
+            self.deviceSource = DeviceSource(rawValue: rawDevice) ?? .iPhone
+        } else {
+            self.deviceSource = .iPhone
+        }
+
+        if let rawIngestion = try? container.decodeIfPresent(String.self, forKey: .ingestionSource) {
+            self.ingestionSource = IngestionSource(rawValue: rawIngestion) ?? .manual
+        } else {
+            self.ingestionSource = .manual
+        }
+
+        if let rawReview = try? container.decodeIfPresent(String.self, forKey: .reviewStatus) {
+            self.reviewStatus = ReviewStatus(rawValue: rawReview) ?? .needsReview
+        } else {
+            self.reviewStatus = .needsReview
+        }
+
+        if let rawPayment = try? container.decodeIfPresent(String.self, forKey: .paymentStatus) {
+            self.paymentStatus = PaymentStatus(rawValue: rawPayment) ?? .unknown
+        } else {
+            self.paymentStatus = .unknown
+        }
+
+        if let rawDup = try? container.decodeIfPresent(String.self, forKey: .duplicateStatus) {
+            self.duplicateStatus = DuplicateStatus(rawValue: rawDup) ?? .unique
+        } else {
+            self.duplicateStatus = .unique
+        }
+
+        if let rawTxType = try? container.decodeIfPresent(String.self, forKey: .transactionType) {
+            self.transactionType = TransactionType(rawValue: rawTxType) ?? .payment
+        } else {
+            self.transactionType = .payment
+        }
+
+        // 3. String & Numeric metadata
+        self.sourceTransactionId = try? container.decodeIfPresent(String.self, forKey: .sourceTransactionId)
+        self.merchantRaw = try? container.decodeIfPresent(String.self, forKey: .merchantRaw)
+        self.merchantCanonical = try? container.decodeIfPresent(String.self, forKey: .merchantCanonical)
+        self.amountMinor = try? container.decodeIfPresent(Int64.self, forKey: .amountMinor)
+        self.remainingBalanceMinor = try? container.decodeIfPresent(Int64.self, forKey: .remainingBalanceMinor)
+        self.isHoldCandidate = (try? container.decodeIfPresent(Bool.self, forKey: .isHoldCandidate)) ?? false
+        self.candidateAmountsMinor = (try? container.decodeIfPresent([Int64].self, forKey: .candidateAmountsMinor)) ?? []
+        self.currency = try? container.decodeIfPresent(String.self, forKey: .currency)
+        self.ledgerAmountMinor = try? container.decodeIfPresent(Int64.self, forKey: .ledgerAmountMinor)
+        self.ledgerCurrency = try? container.decodeIfPresent(String.self, forKey: .ledgerCurrency)
+        self.exchangeRate = try? container.decodeIfPresent(Decimal.self, forKey: .exchangeRate)
+        self.exchangeRateDate = try? container.decodeIfPresent(Date.self, forKey: .exchangeRateDate)
+        self.exchangeRateSource = try? container.decodeIfPresent(String.self, forKey: .exchangeRateSource)
+        self.categoryId = try? container.decodeIfPresent(UUID.self, forKey: .categoryId)
+        self.transactionDate = try? container.decodeIfPresent(Date.self, forKey: .transactionDate)
+        self.transactionTimeZone = try? container.decodeIfPresent(String.self, forKey: .transactionTimeZone)
+
+        // 4. Dates
+        let fallbackDate = Date()
+        self.capturedAt = (try? container.decodeIfPresent(Date.self, forKey: .capturedAt)) ?? fallbackDate
+        self.createdAt = (try? container.decodeIfPresent(Date.self, forKey: .createdAt)) ?? self.capturedAt
+        self.updatedAt = (try? container.decodeIfPresent(Date.self, forKey: .updatedAt)) ?? self.createdAt
+
+        // 5. Confidence & OCR info
+        self.amountConfidence = try? container.decodeIfPresent(Float.self, forKey: .amountConfidence)
+        self.currencyConfidence = try? container.decodeIfPresent(Float.self, forKey: .currencyConfidence)
+        self.merchantConfidence = try? container.decodeIfPresent(Float.self, forKey: .merchantConfidence)
+        self.categoryConfidence = try? container.decodeIfPresent(Float.self, forKey: .categoryConfidence)
+        self.transactionTypeConfidence = try? container.decodeIfPresent(Float.self, forKey: .transactionTypeConfidence)
+        self.ocrEngineVersion = try? container.decodeIfPresent(String.self, forKey: .ocrEngineVersion)
+        self.ocrTemplateVersion = try? container.decodeIfPresent(String.self, forKey: .ocrTemplateVersion)
+        self.isHidden = (try? container.decodeIfPresent(Bool.self, forKey: .isHidden)) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(idempotencyKey, forKey: .idempotencyKey)
+        try container.encode(provider, forKey: .provider)
+        try container.encode(captureChannel, forKey: .captureChannel)
+        try container.encode(deviceSource, forKey: .deviceSource)
+        try container.encode(ingestionSource, forKey: .ingestionSource)
+        try container.encodeIfPresent(sourceTransactionId, forKey: .sourceTransactionId)
+        try container.encodeIfPresent(merchantRaw, forKey: .merchantRaw)
+        try container.encodeIfPresent(merchantCanonical, forKey: .merchantCanonical)
+        try container.encodeIfPresent(amountMinor, forKey: .amountMinor)
+        try container.encodeIfPresent(remainingBalanceMinor, forKey: .remainingBalanceMinor)
+        try container.encode(isHoldCandidate, forKey: .isHoldCandidate)
+        try container.encode(candidateAmountsMinor, forKey: .candidateAmountsMinor)
+        try container.encodeIfPresent(currency, forKey: .currency)
+        try container.encodeIfPresent(ledgerAmountMinor, forKey: .ledgerAmountMinor)
+        try container.encodeIfPresent(ledgerCurrency, forKey: .ledgerCurrency)
+        try container.encodeIfPresent(exchangeRate, forKey: .exchangeRate)
+        try container.encodeIfPresent(exchangeRateDate, forKey: .exchangeRateDate)
+        try container.encodeIfPresent(exchangeRateSource, forKey: .exchangeRateSource)
+        try container.encodeIfPresent(categoryId, forKey: .categoryId)
+        try container.encodeIfPresent(transactionDate, forKey: .transactionDate)
+        try container.encodeIfPresent(transactionTimeZone, forKey: .transactionTimeZone)
+        try container.encode(capturedAt, forKey: .capturedAt)
+        try container.encode(reviewStatus, forKey: .reviewStatus)
+        try container.encode(paymentStatus, forKey: .paymentStatus)
+        try container.encode(duplicateStatus, forKey: .duplicateStatus)
+        try container.encode(transactionType, forKey: .transactionType)
+        try container.encodeIfPresent(amountConfidence, forKey: .amountConfidence)
+        try container.encodeIfPresent(currencyConfidence, forKey: .currencyConfidence)
+        try container.encodeIfPresent(merchantConfidence, forKey: .merchantConfidence)
+        try container.encodeIfPresent(categoryConfidence, forKey: .categoryConfidence)
+        try container.encodeIfPresent(transactionTypeConfidence, forKey: .transactionTypeConfidence)
+        try container.encodeIfPresent(ocrEngineVersion, forKey: .ocrEngineVersion)
+        try container.encodeIfPresent(ocrTemplateVersion, forKey: .ocrTemplateVersion)
+        try container.encode(isHidden, forKey: .isHidden)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }

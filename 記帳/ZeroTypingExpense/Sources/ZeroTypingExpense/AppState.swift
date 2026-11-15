@@ -69,16 +69,19 @@ public final class AppState: ObservableObject {
     public let merchantEngine: MerchantLearningEngine
     private var cachedMerchantRules: [MerchantRule] = []
     private let storageUrl: URL
+    private let autoSeedIfEmpty: Bool
 
     public init(
         storageUrl: URL? = nil,
         engine: TransactionEngine? = nil,
-        merchantEngine: MerchantLearningEngine? = nil
+        merchantEngine: MerchantLearningEngine? = nil,
+        autoSeedIfEmpty: Bool = false
     ) {
         let actualEngine = engine ?? TransactionEngine()
         self.engine = actualEngine
         self.merchantEngine = merchantEngine ?? MerchantLearningEngine()
-        self.storageUrl = storageUrl ?? ZeroTypingDiskStorage.defaultStorageURL
+        self.storageUrl = (storageUrl ?? ZeroTypingDiskStorage.defaultStorageURL).resolvingSymlinksInPath()
+        self.autoSeedIfEmpty = autoSeedIfEmpty
 
         self.categories = AppState.defaultCategories()
         self.categoryBudgets = AppState.defaultCategoryBudgets()
@@ -129,40 +132,111 @@ public final class AppState: ObservableObject {
 
 
     public func load() async {
-        if FileManager.default.fileExists(atPath: storageUrl.path) {
+        let normalizedStoragePath = storageUrl.resolvingSymlinksInPath().path
+        let isDefaultStorage = (normalizedStoragePath == ZeroTypingDiskStorage.defaultStorageURL.resolvingSymlinksInPath().path)
+        var candidateUrls: [URL] = [storageUrl.resolvingSymlinksInPath()]
+        if isDefaultStorage {
+            let backupUrl = ZeroTypingDiskStorage.backupStorageURL.resolvingSymlinksInPath()
+            let documentsUrl = ZeroTypingDiskStorage.documentsStorageURL.resolvingSymlinksInPath()
+            if candidateUrls.first?.path != backupUrl.path { candidateUrls.append(backupUrl) }
+            if candidateUrls.first?.path != documentsUrl.path { candidateUrls.append(documentsUrl) }
+        }
+
+        var loadedEnvelope: AppStorageEnvelope? = nil
+        var foundExistingFile = false
+
+        for url in candidateUrls {
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            foundExistingFile = true
+
             do {
-                let data = try Data(contentsOf: storageUrl)
+                let data = try Data(contentsOf: url)
                 let envelope = try JSONDecoder().decode(AppStorageEnvelope.self, from: data)
-                self.monthlyBudgetTotalMinor = envelope.monthlyBudgetTotalMinor
-                self.categories = envelope.categories
-                self.refunds = envelope.refunds
-                self.transactions = envelope.transactions
-
-                var restoredBudgets: [UUID: Int64] = [:]
-                for (key, val) in envelope.categoryBudgets {
-                    if let uuid = UUID(uuidString: key) {
-                        restoredBudgets[uuid] = val
+                loadedEnvelope = envelope
+                // Restore to primaryUrl if recovered from backup or documents mirror
+                if url.path != storageUrl.path {
+                    let parentDir = storageUrl.deletingLastPathComponent()
+                    if !FileManager.default.fileExists(atPath: parentDir.path) {
+                        try? FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
                     }
+                    try? data.write(to: storageUrl, options: .atomic)
                 }
-                self.categoryBudgets = restoredBudgets
-
-                // Load Merchant Rules
-                await merchantEngine.loadRules(envelope.merchantRules)
-                self.cachedMerchantRules = await merchantEngine.allRules()
-
-                // Sync into TransactionEngine
-                _ = await engine.bulkImport(importedTransactions: envelope.transactions, overwrite: true)
-                for ref in envelope.refunds {
-                    try? await engine.addRefund(ref)
-                }
-                return
+                break
             } catch {
-                print("Failed to load storage, resetting to default seeds: \(error)")
+                print("Failed decoding envelope from \(url.lastPathComponent): \(error)")
+                let corruptedUrl = url.deletingPathExtension().appendingPathExtension("corrupted.\(Int(Date().timeIntervalSince1970)).json")
+                try? FileManager.default.copyItem(at: url, to: corruptedUrl)
             }
         }
 
-        // Seed initial data if file does not exist
-        await seedDefaultData()
+        // Hardware Keychain recovery if disk files missing (e.g. app container reset on update)
+        if loadedEnvelope == nil && isDefaultStorage, let keychainData = ZeroTypingDiskStorage.loadFromKeychain() {
+            if let envelope = try? JSONDecoder().decode(AppStorageEnvelope.self, from: keychainData) {
+                loadedEnvelope = envelope
+                foundExistingFile = true
+                let parentDir = storageUrl.deletingLastPathComponent()
+                try? FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+                try? keychainData.write(to: storageUrl, options: .atomic)
+                try? keychainData.write(to: ZeroTypingDiskStorage.documentsStorageURL, options: .atomic)
+            }
+        }
+
+        if let envelope = loadedEnvelope {
+            self.monthlyBudgetTotalMinor = envelope.monthlyBudgetTotalMinor
+            self.categories = envelope.categories.isEmpty ? AppState.defaultCategories() : envelope.categories
+            self.refunds = envelope.refunds
+            self.transactions = envelope.transactions
+
+            var restoredBudgets: [UUID: Int64] = [:]
+            for (key, val) in envelope.categoryBudgets {
+                if let uuid = UUID(uuidString: key) {
+                    restoredBudgets[uuid] = val
+                }
+            }
+            self.categoryBudgets = restoredBudgets.isEmpty ? AppState.defaultCategoryBudgets() : restoredBudgets
+
+            // Load Merchant Rules
+            await merchantEngine.loadRules(envelope.merchantRules)
+            self.cachedMerchantRules = await merchantEngine.allRules()
+
+            // Sync into TransactionEngine
+            _ = await engine.bulkImport(importedTransactions: envelope.transactions, overwrite: true)
+            for ref in envelope.refunds {
+                try? await engine.addRefund(ref)
+            }
+
+            if isDefaultStorage {
+                UserDefaults.standard.set(true, forKey: "ZeroTyping_HasInitializedBefore")
+            }
+            return
+        }
+
+        // Defensive guard: If existing files were present on disk, NEVER wipe user data with seed transactions
+        if foundExistingFile {
+            print("Existing storage files found on disk; preserving storage and skipping seedDefaultData to prevent data loss.")
+            self.categories = AppState.defaultCategories()
+            self.categoryBudgets = AppState.defaultCategoryBudgets()
+            if isDefaultStorage {
+                UserDefaults.standard.set(true, forKey: "ZeroTyping_HasInitializedBefore")
+            }
+            return
+        }
+
+        // Only seed default records if explicitly enabled (e.g. in specific unit tests)
+        if autoSeedIfEmpty {
+            await seedDefaultData()
+            if isDefaultStorage {
+                UserDefaults.standard.set(true, forKey: "ZeroTyping_HasInitializedBefore")
+            }
+        } else {
+            self.categories = AppState.defaultCategories()
+            self.categoryBudgets = AppState.defaultCategoryBudgets()
+            self.transactions = []
+            self.refunds = []
+            if isDefaultStorage {
+                UserDefaults.standard.set(true, forKey: "ZeroTyping_HasInitializedBefore")
+            }
+        }
     }
 
     public func save() {
@@ -182,8 +256,34 @@ public final class AppState: ObservableObject {
         )
 
         do {
-            let data = try JSONEncoder().encode(envelope)
-            try data.write(to: storageUrl, options: .atomic)
+            let normalizedURL = storageUrl.resolvingSymlinksInPath()
+            let normalizedDefault = ZeroTypingDiskStorage.defaultStorageURL.resolvingSymlinksInPath()
+            let isDefaultStorage = (normalizedURL.path == normalizedDefault.path)
+
+            let parentDir = normalizedURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: parentDir.path) {
+                try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+            }
+
+            // Create pre-save snapshot backup only for default storage
+            if isDefaultStorage && FileManager.default.fileExists(atPath: normalizedURL.path) {
+                let backupUrl = ZeroTypingDiskStorage.backupStorageURL.resolvingSymlinksInPath()
+                try? FileManager.default.removeItem(at: backupUrl)
+                try? FileManager.default.copyItem(at: normalizedURL, to: backupUrl)
+            }
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(envelope)
+            try data.write(to: normalizedURL, options: .atomic)
+
+            // Mirror to Documents directory and Keychain for backup & recovery preservation
+            if isDefaultStorage {
+                let docsUrl = ZeroTypingDiskStorage.documentsStorageURL.resolvingSymlinksInPath()
+                try? data.write(to: docsUrl, options: .atomic)
+                ZeroTypingDiskStorage.saveToKeychain(data: data)
+                UserDefaults.standard.set(true, forKey: "ZeroTyping_HasInitializedBefore")
+            }
         } catch {
             print("Failed to save storage envelope: \(error)")
         }
