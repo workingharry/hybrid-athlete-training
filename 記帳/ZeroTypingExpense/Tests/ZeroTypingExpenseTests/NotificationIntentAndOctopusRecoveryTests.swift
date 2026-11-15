@@ -426,4 +426,97 @@ struct NotificationIntentAndOctopusRecoveryTests {
         #expect(clauses.count >= 1)
         #expect(clauses[0].intent == .topUpOrInternalTransfer)
     }
+
+    @Test("Stage 0: Bank Pop-Up Promo without settlement verb yields nil amount and loanOrPromoOffer intent")
+    func testBankPopUpPromoWithoutSettlementVerb() {
+        let adText = "立即申請私人貸款高達HK$500,000，享HK$2,000現金回贈，簽賬滿HK$1,000即減HK$100！"
+        let result = ocrService.parseRecognizedStrings([adText])
+        #expect(result.intent == .loanOrPromoOffer)
+        #expect(result.amountMinor == nil)
+        #expect(result.isHypotheticalOrConditional == true)
+    }
+
+    @Test("Stage 0: Credit card bill reminder with minimum payment yields nil amount and non-expenditure")
+    func testCreditCardBillReminderNonExpenditure() {
+        let reminderText = "您的恒生信用卡本期最低還款額為 HK$800，結欠 HK$15,000，到期繳款日為 11月28日。"
+        let result = ocrService.parseRecognizedStrings([reminderText])
+        #expect(result.intent == .loanOrPromoOffer)
+        #expect(result.amountMinor == nil)
+        #expect(result.isHypotheticalOrConditional == true)
+    }
+
+    @Test("Batch Transit Reconcile: Multiple pending $0 Express Transit holds resolved by batch rides")
+    func testBatchTransitReconciliation() async throws {
+        let engine = TransactionEngine()
+        let now = Date()
+
+        // 1. User taps Express Transit at 08:30 (MTR tap-in -> $0 pending hold)
+        let tapIn1 = TransactionEntity(
+            idempotencyKey: "transit_tap_1",
+            provider: .octopus,
+            captureChannel: .walletAutomation,
+            deviceSource: .appleWatch,
+            merchantRaw: "MTR",
+            amountMinor: 0,
+            isHoldCandidate: true,
+            currency: "HKD",
+            transactionDate: now.addingTimeInterval(-7200),
+            reviewStatus: .needsReview,
+            paymentStatus: .pending
+        )
+        // 2. User taps bus at 12:15 (Bus tap -> $0 pending hold)
+        let tapIn2 = TransactionEntity(
+            idempotencyKey: "transit_tap_2",
+            provider: .octopus,
+            captureChannel: .walletAutomation,
+            deviceSource: .iPhone,
+            merchantRaw: "KMB",
+            amountMinor: 0,
+            isHoldCandidate: true,
+            currency: "HKD",
+            transactionDate: now.addingTimeInterval(-3600),
+            reviewStatus: .needsReview,
+            paymentStatus: .pending
+        )
+
+        _ = try await engine.ingestTransaction(tapIn1)
+        _ = try await engine.ingestTransaction(tapIn2)
+
+        // Verify 2 holds in engine
+        let holds = await engine.getAllTransactions().filter { ($0.amountMinor == 0 || $0.amountMinor == nil) && $0.paymentStatus == .pending }
+        #expect(holds.count == 2)
+
+        // 3. User takes Octopus App statement screenshot at night with 2 settled rows
+        let ride1 = TransactionEntity(
+            idempotencyKey: "settled_ride_1",
+            provider: .octopus,
+            captureChannel: .photoPicker,
+            merchantRaw: "港鐵 MTR",
+            amountMinor: 1450, // HK$14.50
+            currency: "HKD",
+            transactionDate: now.addingTimeInterval(-7180),
+            reviewStatus: .confirmed,
+            paymentStatus: .completed
+        )
+        let ride2 = TransactionEntity(
+            idempotencyKey: "settled_ride_2",
+            provider: .octopus,
+            captureChannel: .photoPicker,
+            merchantRaw: "九巴 KMB",
+            amountMinor: 680, // HK$6.80
+            currency: "HKD",
+            transactionDate: now.addingTimeInterval(-3580),
+            reviewStatus: .confirmed,
+            paymentStatus: .completed
+        )
+
+        let reconciled = try await engine.batchReconcileTransitHolds([ride1, ride2])
+        #expect(reconciled.count == 2)
+        #expect(reconciled.allSatisfy { $0.paymentStatus == .completed })
+        #expect(reconciled.allSatisfy { $0.reviewStatus == .confirmed })
+
+        // Both holds should now be resolved to non-zero completed transactions
+        let remainingPendingHolds = await engine.getAllTransactions().filter { ($0.amountMinor == 0 || $0.amountMinor == nil) && $0.paymentStatus == .pending }
+        #expect(remainingPendingHolds.isEmpty)
+    }
 }

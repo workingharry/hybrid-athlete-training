@@ -221,7 +221,10 @@ public final class VisionOCRService: Sendable {
         }
 
         // 2. topUpOrInternalTransfer (must evaluate before expenditure so AAVS deductions are not double counted)
-        let topUpKeywords = ["自動增值", "已增值", "增值", "top up", "top-up", "reload", "aavs", "儲值", "充值", "八達通增值"]
+        let topUpKeywords = [
+            "自動增值", "已增值", "增值", "top up", "top-up", "reload", "aavs", "儲值", "充值", "八達通增值",
+            "已收款", "轉數快收款", "payme收款", "received fps"
+        ]
         if topUpKeywords.contains(where: { lower.contains($0.lowercased()) }) {
             return ParsedClause(text: clause, intent: .topUpOrInternalTransfer, isHypotheticalOrConditional: false, evidencePhrase: clause)
         }
@@ -232,25 +235,42 @@ public final class VisionOCRService: Sendable {
             return ParsedClause(text: clause, intent: .refundOrReversal, isHypotheticalOrConditional: false, evidencePhrase: clause)
         }
 
-        // 4. loanOrPromoOffer
-        let loanKeywords = ["貸款", "借貸", "預批", "分期", "現金分期", "月平息", "實際年利率", "信用額", "最低還款", "loan", "pre-approved", "installment", "apr", "credit limit", "min pay"]
-        let promoKeywords = ["高達", "低至", "消費滿", "簽賬滿", "回贈", "獎賞", "抽獎", "優惠券", "up to", "as low as", "rebate", "cashback", "coupon"]
+        // 4. billReminderOrBalanceOnly (credit card bill reminders & statement notices)
+        let billReminderKeywords = [
+            "最低還款額", "到期繳款", "結欠", "結單結餘", "statement balance", "minimum payment", "due date", "payment due"
+        ]
+        let hasBillReminder = billReminderKeywords.contains { lower.contains($0.lowercased()) }
+
+        // 5. loanOrPromoOffer
+        let loanKeywords = [
+            "貸款", "借貸", "預批", "分期", "現金分期", "月平息", "實際年利率", "信用額", "最低還款",
+            "私人貸款", "立即申請", "年利率", "apr", "loan", "pre-approved", "installment", "credit limit", "min pay", "apply now"
+        ]
+        let promoKeywords = [
+            "高達", "低至", "消費滿", "簽賬滿", "回贈", "現金回贈", "迎新", "優惠", "限時", "抽獎", "獎賞",
+            "印花", "推薦", "賺取", "即減", "up to", "as low as", "rebate", "cashback", "coupon", "reward", "win", "offer"
+        ]
         let hasLoan = loanKeywords.contains { lower.contains($0.lowercased()) }
         let hasPromo = promoKeywords.contains { lower.contains($0.lowercased()) }
 
-        let settledKeywords = ["已扣除", "扣除", "已付款", "付款", "消費", "支付", "扣款", "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "payment of", "purchase", "fare", "net", "實付", "買了", "結帳"]
+        // Contrast Rule: require completed settlement verb to distinguish real receipt discounts from promo ads
+        let settledKeywords = [
+            "已扣除", "扣除", "已付款", "付款", "已消費", "消費", "已扣款", "扣款", "已過數", "成功交易",
+            "交易金額", "車費", "收費", "deducted", "paid", "spent", "charged", "transaction approved",
+            "payment of", "purchase", "fare", "net", "實付", "買了", "結帳", "-hk$", "-$"
+        ]
         let hasSettled = settledKeywords.contains { lower.contains($0.lowercased()) }
 
-        if hasLoan || (hasPromo && !hasSettled) {
+        if hasLoan || hasBillReminder || (hasPromo && !hasSettled) {
             return ParsedClause(text: clause, intent: .loanOrPromoOffer, isHypotheticalOrConditional: true, evidencePhrase: nil)
         }
 
-        // 5. confirmedExpenditure
+        // 6. confirmedExpenditure
         if hasSettled {
             return ParsedClause(text: clause, intent: .confirmedExpenditure, isHypotheticalOrConditional: false, evidencePhrase: clause)
         }
 
-        // 6. balanceInquiryOnly
+        // 7. balanceInquiryOnly
         let balanceKeywords = ["餘額", "結餘", "現時餘額", "最新結餘", "可用餘額", "可用信用額", "剩餘儲值", "餘額為", "remaining value", "remaining balance", "balance", "bal", "avail"]
         if balanceKeywords.contains(where: { lower.contains($0.lowercased()) }) {
             return ParsedClause(text: clause, intent: .balanceInquiryOnly, isHypotheticalOrConditional: false, evidencePhrase: nil)
@@ -402,7 +422,7 @@ public final class VisionOCRService: Sendable {
 
         // Active lines for amount extraction: drop pure loan/promo/otp clauses so non-expenditure limits are never extracted as spent
         let activeClauses = parsedClauses.filter { $0.intent != .loanOrPromoOffer && $0.intent != .otpOrAuthAttempt }
-        let effectiveLines = (hasExpenditureClause || hasRefundClause || hasTopUpClause) ? activeClauses.map { $0.text } : sanitizedLines
+        let effectiveLines = (hasExpenditureClause || hasRefundClause || hasTopUpClause) ? activeClauses.map { $0.text } : (hasLoanPromoOnly || hasOTPOnly ? [] : sanitizedLines)
 
         // 1. Detect Provider & Initial Currency & Transaction Type
         let provider = VisionOCRService.detectPaymentProvider(in: fullText)
@@ -1137,6 +1157,77 @@ public final class VisionOCRService: Sendable {
         #endif
     }
 
+    /// Geometry observation with normalized bounding box for spatial clustering
+    public struct OCRGeometricToken: Sendable {
+        public let text: String
+        public let boundingBox: CGRect // Normalized [0, 1] (y=0 at bottom, y=1 at top in Vision)
+
+        public init(text: String, boundingBox: CGRect) {
+            self.text = text
+            self.boundingBox = boundingBox
+        }
+    }
+
+    /// Spatial Y-Row Clustering: Group text observations with overlapping vertical midpoints
+    /// (|midY_1 - midY_2| < lineHeight * 0.55) into visual rows sorted left-to-right (minX).
+    /// Header/Balance Zone Exclusion: When Octopus/Wallet markers are present, mask out top card balance zone.
+    public static func clusterObservationsIntoLines(_ observations: [VNRecognizedTextObservation]) -> [String] {
+        var tokens: [OCRGeometricToken] = []
+        for obs in observations {
+            if let candidate = obs.topCandidates(1).first {
+                tokens.append(OCRGeometricToken(text: candidate.string, boundingBox: obs.boundingBox))
+            }
+        }
+        guard !tokens.isEmpty else { return [] }
+
+        // Detect if Octopus App screenshot (has "八達通", "Octopus", or "卡號")
+        let fullJoined = tokens.map { $0.text }.joined(separator: " ").lowercased()
+        let isOctopusApp = fullJoined.contains("八達通") || fullJoined.contains("octopus") || fullJoined.contains("卡號")
+
+        // Exclude tokens in top Card Balance header zone (Vision coordinate: y=1.0 is top, so y > 0.72 is top card zone)
+        // IF the token contains balance keywords or is in the card balance area
+        let filteredTokens = tokens.filter { token in
+            if isOctopusApp && token.boundingBox.midY > 0.72 {
+                let lower = token.text.lowercased()
+                if lower.contains("餘額") || lower.contains("balance") || lower.contains("hk$") || lower.contains("$") {
+                    return false
+                }
+            }
+            return true
+        }
+
+        // Sort top-to-bottom first (Vision y: higher y is higher on screen)
+        let sortedTokens = filteredTokens.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+
+        var rows: [[OCRGeometricToken]] = []
+        for token in sortedTokens {
+            let tokenMidY = token.boundingBox.midY
+            let tokenHeight = token.boundingBox.height > 0 ? token.boundingBox.height : 0.03
+            let threshold = tokenHeight * 0.55
+
+            if let rowIndex = rows.firstIndex(where: { row in
+                guard let first = row.first else { return false }
+                return abs(first.boundingBox.midY - tokenMidY) <= threshold
+            }) {
+                rows[rowIndex].append(token)
+            } else {
+                rows.append([token])
+            }
+        }
+
+        // For each row, sort left-to-right (minX) and join
+        var clusteredLines: [String] = []
+        for row in rows {
+            let sortedRow = row.sorted { $0.boundingBox.minX < $1.boundingBox.minX }
+            let lineText = sortedRow.map { $0.text }.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+            if !lineText.isEmpty {
+                clusteredLines.append(lineText)
+            }
+        }
+
+        return clusteredLines
+    }
+
     /// Execute on-device Vision VNRecognizeTextRequest on a CGImage
     public func recognizeReceipt(cgImage: CGImage) async throws -> OCRResult {
         return try await withCheckedThrowingContinuation { continuation in
@@ -1151,7 +1242,7 @@ public final class VisionOCRService: Sendable {
                     return
                 }
 
-                let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+                let lines = VisionOCRService.clusterObservationsIntoLines(observations)
                 let result = self.parseRecognizedStrings(lines)
                 continuation.resume(returning: result)
             }

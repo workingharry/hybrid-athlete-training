@@ -564,6 +564,17 @@ public actor TransactionEngine {
         return (importedCount, skippedCount)
     }
 
+    /// Batch-reconcile multiple settled transit rows (e.g. from an Octopus App statement screenshot)
+    /// against pending $0 Express Transit holds in amountIndex[0].
+    public func batchReconcileTransitHolds(_ incomingTransactions: [TransactionEntity]) async throws -> [TransactionEntity] {
+        var results: [TransactionEntity] = []
+        for tx in incomingTransactions {
+            let ingested = try ingestTransaction(tx)
+            results.append(ingested)
+        }
+        return results
+    }
+
     // MARK: - Internal Accounting Helpers
 
     private func isActiveConfirmedExpense(_ tx: TransactionEntity, targetCurrency: String? = nil, start: Date? = nil, end: Date? = nil) -> Bool {
